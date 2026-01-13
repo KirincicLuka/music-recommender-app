@@ -1,16 +1,22 @@
 const mongoose = require('mongoose');
 
 const SongSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  deezerId: String,
-  title: String,
-  artist: String,
+  deezerId: { type: String, unique: true, required: true }, 
+  title: { type: String, required: true },
+  artist: { type: String, required: true },
   album: String,
   preview: String,
   cover: String,
-  audioDBArtistId: String,
-  favorite: { type: Boolean, default: false },
-  addedAt: { type: Date, default: Date.now }
+  duration: Number, 
+  rank: Number, 
+  releaseDate: String,
+  genre: String,
+  lyrics: String,
+  musicVideo: String,
+  mood: String,
+  createdAt: { type: Date, default: Date.now }
 });
+
+SongSchema.index({ title: 'text', artist: 'text', album: 'text' });
 
 module.exports = mongoose.model('Song', SongSchema);

@@ -1,77 +1,124 @@
 const express = require('express');
-const axios = require('axios');
 const Song = require('../models/Song');
+const Favorite = require('../models/Favorite');
 const router = express.Router();
 
 router.get('/search', async (req, res) => {
   const { q } = req.query;
-  try {
-    const response = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(q)}`);
-    res.json(response.data.data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  
+  if (!q) {
+    return res.status(400).json({ error: 'Query parameter required' });
   }
-});
-
-router.post('/save', async (req, res) => {
-  const { userId, title, artist, album, preview, cover } = req.body;
 
   try {
-    const existingSong = await Song.findOne({ 
-      user: userId, 
-      title: title,
-      artist: artist 
-    });
+    const songs = await Song.find(
+      { $text: { $search: q } },
+      { score: { $meta: 'textScore' } }
+    )
+    .sort({ score: { $meta: 'textScore' } })
+    .limit(50);
 
-    if (existingSong) {
-      return res.status(400).json({ error: 'Song already saved' });
+    if (songs.length === 0) {
+      const regex = new RegExp(q, 'i');
+      const regexSongs = await Song.find({
+        $or: [
+          { title: regex },
+          { artist: regex },
+          { album: regex }
+        ]
+      }).limit(50);
+      
+      return res.json(regexSongs);
     }
 
-    let finalCover = cover;
-    if (!cover) {
-      try {
-        const audioDBRes = await axios.get(
-          `https://theaudiodb.com/api/v1/json/2/searchtrack.php?s=${encodeURIComponent(artist)}&t=${encodeURIComponent(title)}`
-        );
-        const trackData = audioDBRes.data?.track?.[0];
-        if (trackData?.strTrackThumb) {
-          finalCover = trackData.strTrackThumb;
-        }
-      } catch (audioErr) {
-        console.log('AudioDB fetch failed, using Deezer cover');
-      }
-    }
-
-    const song = await Song.create({
-      user: userId,
-      title,
-      artist,
-      album,
-      preview,
-      cover: finalCover
-    });
-
-    res.json(song);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/user/:userId', async (req, res) => {
-  try {
-    const songs = await Song.find({ user: req.params.userId }).sort({ addedAt: -1 });
     res.json(songs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Brisanje pjesme
-router.delete('/:songId', async (req, res) => {
+router.get('/all', async (req, res) => {
   try {
-    await Song.findByIdAndDelete(req.params.songId);
-    res.json({ message: 'Song deleted' });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    const songs = await Song.find()
+      .sort({ rank: -1 }) 
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Song.countDocuments();
+
+    res.json({
+      songs,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/favorite', async (req, res) => {
+  const { userId, songId } = req.body;
+
+  try {
+    const song = await Song.findById(songId);
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    const favorite = await Favorite.create({
+      user: userId,
+      song: songId
+    });
+
+    const populated = await Favorite.findById(favorite._id).populate('song');
+    res.json(populated);
+
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Song already in favorites' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/favorites/:userId', async (req, res) => {
+  try {
+    const favorites = await Favorite.find({ user: req.params.userId })
+      .populate('song')
+      .sort({ addedAt: -1 });
+
+    res.json(favorites);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/favorite/:favoriteId', async (req, res) => {
+  try {
+    await Favorite.findByIdAndDelete(req.params.favoriteId);
+    res.json({ message: 'Removed from favorites' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/stats', async (req, res) => {
+  try {
+    const totalSongs = await Song.countDocuments();
+    const totalFavorites = await Favorite.countDocuments();
+    
+    res.json({
+      totalSongs,
+      totalFavorites
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
