@@ -25,99 +25,82 @@ function SearchBar({ userId, onSongSaved }) {
     }
   };
 
-  const handleSave = async (song) => {
+  const handleAddToFavorite = async (song) => {
     try {
-      const payload = {
-        userId,
-        title: song.title,
-        artist: song.artist.name,
-        album: song.album.title,
-        preview: song.preview,
-        cover: song.album.cover_medium || song.album.cover_big || song.album.cover_small
-      };
-      const res = await API.post('/api/songs/save', payload);
-      onSongSaved(res.data);
+      await API.post('/api/songs/favorite', {
+        userId: userId,  
+        songId: song._id 
+      });
       
-      const button = document.querySelector(`[data-song-id="${song.id}"]`);
-      if (button) {
-        button.textContent = '✓ Saved!';
-        button.classList.add('bg-green-500');
-        setTimeout(() => {
-          button.textContent = 'Save';
-          button.classList.remove('bg-green-500');
-        }, 2000);
-      }
+      alert('Song added to favorites!');
+      onSongSaved(song); 
+      
     } catch (err) {
       console.error(err);
-      alert('Failed to save song. It may already be in your library!');
+      if (err.response?.data?.error === 'Song already in favorites') {
+        alert('This song is already in your favorites!');
+      } else {
+        alert('Failed to add song to favorites!');
+      }
     }
   };
 
   return (
     <div className="w-full">
-      <div className="flex gap-3 mb-8">
-        <div className="flex-1 relative">
-          <input 
-            type="text" 
-            placeholder="Search for songs, artists, or albums..." 
-            value={query} 
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="w-full px-6 py-4 rounded-2xl border-2 border-gray-200 focus:border-indigo-500 focus:outline-none transition-all text-lg shadow-sm"
-          />
-          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            🔍
-          </div>
-        </div>
+      <div className="flex gap-4 mb-8">
+        <input 
+          type="text" 
+          placeholder="Search by title or artist..." 
+          value={query} 
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyPress={handleKeyPress}
+          className="flex-1 px-6 py-4 rounded-xl bg-white/90 backdrop-blur-sm border-2 border-white/50 focus:border-white focus:outline-none text-gray-800 placeholder-gray-500 text-lg shadow-lg"
+        />
         <button 
           onClick={handleSearch} 
           disabled={loading}
-          className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-8 py-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Searching...' : 'Search'}
         </button>
       </div>
 
       {results.length > 0 && (
-        <div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-6">
-            Search Results ({results.length})
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="bg-gray-900 rounded-2xl p-8 shadow-2xl">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
             {results.map(song => (
               <div 
-                key={song.id} 
-                className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group hover:-translate-y-1"
+                key={song._id} 
+                className="bg-gray-800 rounded-xl overflow-hidden hover:bg-gray-750 transition-all cursor-pointer group"
               >
-                <div className="relative overflow-hidden aspect-square">
+                <div className="relative aspect-square overflow-hidden">
                   <img 
-                    src={song.album.cover_medium} 
+                    src={song.cover || 'https://via.placeholder.com/300'} 
                     alt={song.title} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300"></div>
                 </div>
 
                 <div className="p-4">
-                  <h4 className="font-bold text-lg mb-1 truncate text-gray-800">
+                  <h4 className="font-semibold text-white mb-1 truncate text-sm">
                     {song.title}
                   </h4>
-                  <p className="text-gray-600 text-sm mb-3 truncate">
-                    {song.artist.name}
+                  <p className="text-gray-400 text-xs mb-3 truncate">
+                    {song.artist}
                   </p>
 
                   <audio 
                     controls 
                     src={song.preview} 
                     className="w-full mb-3 h-8"
+                    style={{ filter: 'invert(1) hue-rotate(180deg)' }}
                   />
 
                   <button 
-                    onClick={() => handleSave(song)}
-                    data-song-id={song.id}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+                    onClick={() => handleAddToFavorite(song)}
+                    className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all"
                   >
-                    💾 Save
+                    ⭐ Add to Favorites
                   </button>
                 </div>
               </div>
@@ -126,10 +109,16 @@ function SearchBar({ userId, onSongSaved }) {
         </div>
       )}
 
+      {!loading && results.length === 0 && !query && (
+        <div className="text-center py-12 text-white">
+          <p className="text-xl opacity-90">Search for your favorite songs above</p>
+        </div>
+      )}
+
       {!loading && results.length === 0 && query && (
-        <div className="text-center py-12">
+        <div className="text-center py-12 text-white">
           <div className="text-6xl mb-4">🎵</div>
-          <p className="text-gray-500 text-lg">No results found. Try a different search!</p>
+          <p className="text-xl opacity-90">No results found. Try a different search!</p>
         </div>
       )}
     </div>
