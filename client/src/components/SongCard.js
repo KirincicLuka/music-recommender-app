@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import API from '../api';
 
-function SongCard({ song, onDelete }) {
+function SongCard({ song, favoriteId, onDelete }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this song?')) return;
+    if (!window.confirm('Remove this song from favorites?')) return;
     
     setIsDeleting(true);
     try {
-      await API.delete(`/api/songs/${song._id}`);
-      onDelete(song._id);
+      await API.delete(`/api/songs/favorite/${favoriteId}`);
+      onDelete(favoriteId);
     } catch (err) {
       console.error(err);
       setIsDeleting(false);
@@ -36,8 +36,8 @@ function SongCard({ song, onDelete }) {
   const songPreview = song.previewUrl || song.preview;
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group hover:-translate-y-2">
-      <div className="relative overflow-hidden aspect-square">
+    <div className="bg-gray-800 rounded-xl overflow-hidden hover:bg-gray-750 transition-all cursor-pointer group">
+      <div className="relative aspect-square overflow-hidden">
         <img 
           src={songImage} 
           alt={songName} 
@@ -55,9 +55,9 @@ function SongCard({ song, onDelete }) {
         <button 
           onClick={handleDelete}
           disabled={isDeleting}
-          className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-lg disabled:opacity-50"
+          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg disabled:opacity-50 text-xs"
         >
-          {isDeleting ? '⏳' : '🗑️'}
+          {isDeleting ? '⏳' : '✕'}
         </button>
       </div>
 
@@ -65,7 +65,7 @@ function SongCard({ song, onDelete }) {
         <h3 className="font-bold text-xl mb-1 text-gray-800 truncate group-hover:text-indigo-600 transition-colors">
           {songName}
         </h3>
-        <p className="text-gray-600 text-sm mb-2 truncate">
+        <p className="text-gray-400 text-xs mb-3 truncate">
           {song.artist}
         </p>
         <p className="text-gray-400 text-xs mb-4 truncate">
@@ -90,8 +90,6 @@ function SongCard({ song, onDelete }) {
           </button>
         </div>
       </div>
-
-      <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
     </div>
   );
 }

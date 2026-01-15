@@ -26,7 +26,7 @@ function SearchBar({ userId, onSongSaved }) {
     }
   };
 
-  const handleSave = async (song) => {
+  const handleAddToFavorite = async (song) => {
     try {
       const payload = {
         userId,
@@ -59,7 +59,11 @@ function SearchBar({ userId, onSongSaved }) {
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to save song. It may already be in your library!');
+      if (err.response?.data?.error === 'Song already in favorites') {
+        alert('This song is already in your favorites!');
+      } else {
+        alert('Failed to add song to favorites!');
+      }
     }
   };
 
@@ -92,24 +96,19 @@ function SearchBar({ userId, onSongSaved }) {
 
   return (
     <div className="w-full">
-      <div className="flex gap-3 mb-8">
-        <div className="flex-1 relative">
-          <input 
-            type="text" 
-            placeholder="Search for songs, artists, or albums..." 
-            value={query} 
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
-            className="w-full px-6 py-4 rounded-2xl border-2 border-gray-200 focus:border-indigo-500 focus:outline-none transition-all text-lg shadow-sm"
-          />
-          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-            🔍
-          </div>
-        </div>
+      <div className="flex gap-4 mb-8">
+        <input 
+          type="text" 
+          placeholder="Search by title or artist..." 
+          value={query} 
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyPress={handleKeyPress}
+          className="flex-1 px-6 py-4 rounded-xl bg-white/90 backdrop-blur-sm border-2 border-white/50 focus:border-white focus:outline-none text-gray-800 placeholder-gray-500 text-lg shadow-lg"
+        />
         <button 
           onClick={handleSearch} 
           disabled={loading}
-          className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl hover:from-indigo-700 hover:to-purple-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-8 py-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Searching...' : 'Search'}
         </button>
@@ -223,7 +222,7 @@ function SearchBar({ userId, onSongSaved }) {
       {!loading && totalResults === 0 && query && (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🎵</div>
-          <p className="text-gray-500 text-lg">No results found. Try a different search!</p>
+          <p className="text-xl opacity-90">No results found. Try a different search!</p>
         </div>
       )}
     </div>

@@ -1,5 +1,4 @@
 const express = require('express');
-const axios = require('axios');
 const Song = require('../models/Song');
 const { ensureAuth } = require('../middleware/auth');
 const spotify = require('../services/spotify');
@@ -103,9 +102,12 @@ router.post('/save', ensureAuth, async (req, res) => {
       externalId,
     });
 
-    if (existingSong) {
-      return res.status(400).json({ error: 'Song already saved' });
-    }
+    const songs = await Song.find()
+      .sort({ rank: -1 }) 
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Song.countDocuments();
 
     // Kreiramo novi song zapis
     const songData = {
@@ -133,8 +135,11 @@ router.post('/save', ensureAuth, async (req, res) => {
  */
 router.get('/user/:userId', async (req, res) => {
   try {
-    const songs = await Song.find({ user: req.params.userId }).sort({ addedAt: -1 });
-    res.json(songs);
+    const favorites = await Favorite.find({ user: req.params.userId })
+      .populate('song')
+      .sort({ addedAt: -1 });
+
+    res.json(favorites);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

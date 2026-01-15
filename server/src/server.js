@@ -8,15 +8,19 @@ const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/auth');
 const songsRoutes = require('./routes/songs'); 
+const statsRoutes = require('./routes/stats'); 
 
 const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: true,
   credentials: true
 }));
+
+app.use('/api/stats', statsRoutes);
+
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev_secret',
