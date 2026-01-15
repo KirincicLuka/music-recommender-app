@@ -1,47 +1,106 @@
 const express = require('express');
 const Song = require('../models/Song');
-const Favorite = require('../models/Favorite');
+const { ensureAuth } = require('../middleware/auth');
+const spotify = require('../services/spotify');
+const itunes = require('../services/itunes');
+
 const router = express.Router();
 
+/**
+ * GET /api/songs/search - Multi-source pretraga
+ * Pretražuje Deezer, Spotify i iTunes istovremeno i vraća sve rezultate
+ */
 router.get('/search', async (req, res) => {
-  const { q } = req.query;
+  const { q, source } = req.query;
   
   if (!q) {
-    return res.status(400).json({ error: 'Query parameter required' });
+    return res.json({ deezer: [], spotify: [], itunes: [] });
   }
 
   try {
-    const songs = await Song.find(
-      { $text: { $search: q } },
-      { score: { $meta: 'textScore' } }
-    )
-    .sort({ score: { $meta: 'textScore' } })
-    .limit(50);
-
-    if (songs.length === 0) {
-      const regex = new RegExp(q, 'i');
-      const regexSongs = await Song.find({
-        $or: [
-          { title: regex },
-          { artist: regex },
-          { album: regex }
-        ]
-      }).limit(50);
+    // Ako je specifiran source, pretražujemo samo taj API
+    if (source) {
+      let results = [];
       
-      return res.json(regexSongs);
+      if (source === 'deezer') {
+        const response = await axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(q)}`);
+        results = response.data.data.map(song => ({
+          source: 'deezer',
+          externalId: song.id.toString(),
+          name: song.title,
+          artist: song.artist.name,
+          album: song.album.title,
+          imageUrl: song.album.cover_medium || song.album.cover_big,
+          previewUrl: song.preview,
+          deezerId: song.id.toString(),
+        }));
+      } else if (source === 'spotify') {
+        results = await spotify.searchTracks(q);
+      } else if (source === 'itunes') {
+        results = await itunes.searchTracks(q);
+      }
+      
+      return res.json({ [source]: results });
     }
 
-    res.json(songs);
+    // Pretražujemo sve API-jeve paralelno
+    const [deezerResponse, spotifyResults, itunesResults] = await Promise.allSettled([
+      axios.get(`https://api.deezer.com/search?q=${encodeURIComponent(q)}`),
+      spotify.searchTracks(q),
+      itunes.searchTracks(q),
+    ]);
+
+    // Normalizujemo Deezer rezultate
+    const deezerResults = deezerResponse.status === 'fulfilled'
+      ? deezerResponse.value.data.data.map(song => ({
+          source: 'deezer',
+          externalId: song.id.toString(),
+          name: song.title,
+          artist: song.artist.name,
+          album: song.album.title,
+          imageUrl: song.album.cover_medium || song.album.cover_big,
+          previewUrl: song.preview,
+          deezerId: song.id.toString(),
+        }))
+      : [];
+
+    // Vraćamo grupisane rezultate po izvoru
+    res.json({
+      deezer: deezerResults,
+      spotify: spotifyResults.status === 'fulfilled' ? spotifyResults.value : [],
+      itunes: itunesResults.status === 'fulfilled' ? itunesResults.value : [],
+    });
   } catch (err) {
+    console.error('Search error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/all', async (req, res) => {
+/**
+ * POST /api/songs/save - Sprema pjesmu u korisnikovu biblioteku
+ * Radi sa svim izvorima (deezer, spotify, itunes)
+ */
+router.post('/save', ensureAuth, async (req, res) => {
+  const { userId, source, externalId, name, artist, album, imageUrl, previewUrl, ...rest } = req.body;
+
+  // Koristimo req.user iz passport-a ako postoji
+  const finalUserId = userId || (req.user && req.user._id);
+
+  if (!finalUserId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  if (!source || !externalId || !name || !artist) {
+    return res.status(400).json({ error: 'Missing required fields: source, externalId, name, artist' });
+  }
+
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const skip = (page - 1) * limit;
+    // Provjera da li pjesma već postoji u korisnkovoj biblioteci
+    const existingSong = await Song.findOne({
+      user: finalUserId,
+      source,
+      externalId,
+    });
 
     const songs = await Song.find()
       .sort({ rank: -1 }) 
@@ -50,46 +109,31 @@ router.get('/all', async (req, res) => {
 
     const total = await Song.countDocuments();
 
-    res.json({
-      songs,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
+    // Kreiramo novi song zapis
+    const songData = {
+      user: finalUserId,
+      source,
+      externalId,
+      name,
+      artist,
+      album,
+      imageUrl,
+      previewUrl,
+      ...rest, // Dodatni podaci specifični za izvor (spotifyUrl, itunesUrl, genre, itd.)
+    };
+
+    const song = await Song.create(songData);
+    res.json(song);
   } catch (err) {
+    console.error('Save song error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/favorite', async (req, res) => {
-  const { userId, songId } = req.body;
-
-  try {
-    const song = await Song.findById(songId);
-    if (!song) {
-      return res.status(404).json({ error: 'Song not found' });
-    }
-
-    const favorite = await Favorite.create({
-      user: userId,
-      song: songId
-    });
-
-    const populated = await Favorite.findById(favorite._id).populate('song');
-    res.json(populated);
-
-  } catch (err) {
-    if (err.code === 11000) {
-      return res.status(400).json({ error: 'Song already in favorites' });
-    }
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/favorites/:userId', async (req, res) => {
+/**
+ * GET /api/songs/user/:userId - Dohvata sve pjesme korisnika
+ */
+router.get('/user/:userId', async (req, res) => {
   try {
     const favorites = await Favorite.find({ user: req.params.userId })
       .populate('song')
@@ -101,24 +145,49 @@ router.get('/favorites/:userId', async (req, res) => {
   }
 });
 
-router.delete('/favorite/:favoriteId', async (req, res) => {
+/**
+ * DELETE /api/songs/:songId - Briše pjesmu iz biblioteke
+ */
+router.delete('/:songId', ensureAuth, async (req, res) => {
   try {
-    await Favorite.findByIdAndDelete(req.params.favoriteId);
-    res.json({ message: 'Removed from favorites' });
+    const song = await Song.findById(req.params.songId);
+    
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    // Provjera da li je korisnik vlasnik pjesme
+    if (req.user && song.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized to delete this song' });
+    }
+
+    await Song.findByIdAndDelete(req.params.songId);
+    res.json({ message: 'Song deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/stats', async (req, res) => {
+/**
+ * PATCH /api/songs/:songId/favorite - Toggle favorite status
+ */
+router.patch('/:songId/favorite', ensureAuth, async (req, res) => {
   try {
-    const totalSongs = await Song.countDocuments();
-    const totalFavorites = await Favorite.countDocuments();
+    const song = await Song.findById(req.params.songId);
     
-    res.json({
-      totalSongs,
-      totalFavorites
-    });
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    // Provjera da li je korisnik vlasnik pjesme
+    if (req.user && song.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized to modify this song' });
+    }
+
+    song.favorite = !song.favorite;
+    await song.save();
+    
+    res.json(song);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
