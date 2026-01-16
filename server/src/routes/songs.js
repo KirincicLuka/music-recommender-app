@@ -1,6 +1,7 @@
 const express = require('express');
 const Song = require('../models/Song');
 const Favorite = require('../models/Favorite');
+const User = require('../models/User');
 const { enrichWithDeezer } = require('../utils/deezerApi');
 const { getMultiRegionData } = require('../utils/itunesApi');
 const { getLastfmTrackInfo, getSimilarTracks } = require('../utils/lastfmApi');
@@ -117,11 +118,11 @@ router.delete('/favorite/:favoriteId', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const totalSongs = await Song.countDocuments();
-    const totalFavorites = await Favorite.countDocuments();
+    const totalUsers = await User.countDocuments();
     
     res.json({
       totalSongs,
-      totalFavorites
+      totalUsers
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

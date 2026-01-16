@@ -20,7 +20,7 @@ function SavedSongs({ user }) {
           </div>
         </div>
 
-        <SongList userId={user.id} />
+        <SongList userId={user.id} mode="favorites" />
       </div>
     </div>
   );
