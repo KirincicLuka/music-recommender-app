@@ -26,19 +26,22 @@ const SongSchema = new mongoose.Schema({
   }],
   
   // iTUNES PODACI (višestruke regije)
-  itunesData: [{
-    country: String,              // HR, US, GB, etc.
+ itunesData: {
+  type: [{
+    country: String,
     itunesId: Number,
     itunesUrl: String,
-    previewUrl: String,           // Backup preview link
-    artworkUrl600: String,        // Visoka rezolucija cover
+    previewUrl: String,
+    artworkUrl600: String,
     trackPrice: Number,
     currency: String,
-    collectionName: String,       // Album ime iz iTunes
+    collectionName: String,
     discNumber: Number,
     trackNumber: Number,
-    isrc: String                  // International Standard Recording Code
+    isrc: String
   }],
+  default: []
+},
   
   // LAST.FM PODACI (za preporuke)
   lastfmData: {
@@ -52,6 +55,22 @@ const SongSchema = new mongoose.Schema({
       match: Number               // 0-1 similarity score
     }]
   },
+  popularity: Number,
+  youtubeData: {
+  videoId: String,
+  views: Number,
+  likes: Number,
+  commentCount: Number,
+
+  sentiment: {
+    positive: Number,
+    neutral: Number,
+    negative: Number,
+    score: Number
+  },
+
+  fetchedAt: Date
+},          // Kombinirana metrike popularnosti
   
   createdAt: { type: Date, default: Date.now }
 });
