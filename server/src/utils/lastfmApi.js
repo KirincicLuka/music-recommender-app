@@ -159,6 +159,8 @@ async function runEnrichment() {
 
 module.exports = {
   enrichAllSongs,
-  runEnrichment
+  runEnrichment,
+  getLastfmTrackInfo,
+  getSimilarTracks
 };
 

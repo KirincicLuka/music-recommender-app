@@ -1,33 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import API from '../api';
+import SongModal from './SongModal';
 
-function SongCard({ song, favoriteId, onDelete }) {
+//
+// SongCard can be used in two contexts:
+// - Favorites list: pass favoriteId + onDelete -> shows "Remove"
+// - Recommendations / generic list: pass onAdd -> shows "Add to favorites"
+//
+function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove = true }) {
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isEnriching, setIsEnriching] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
-  const [recommendations, setRecommendations] = useState([]);
-  const [loadingRecs, setLoadingRecs] = useState(false);
-  const [enrichedSong, setEnrichedSong] = useState(song);
+  const [showModal, setShowModal] = useState(false);
+  const [currentSong, setCurrentSong] = useState(song);
+  
+  // Audio player state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef(null);
 
-  // Ažuriraj enrichedSong kada se song prop promijeni
   useEffect(() => {
-    setEnrichedSong(song);
-  }, [song]);
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  // DEBUG - provjeri podatke
-  useEffect(() => {
-    console.log('🎵 Song data:', {
-      title: song.title,
-      hasBpm: !!enrichedSong.bpm,
-      hasItunes: !!enrichedSong.itunesData?.length,
-      hasLastfm: !!enrichedSong.lastfmData,
-      lastfmPlaycount: enrichedSong.lastfmData?.playcount,
-      lastfmListeners: enrichedSong.lastfmData?.listeners,
-      fullData: enrichedSong
-    });
-  }, [enrichedSong]);
+    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateDuration = () => setDuration(audio.duration);
+    const handleEnded = () => setIsPlaying(false);
 
-  const handleDelete = async () => {
+    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateTime);
+      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+
+  const handleDelete = async (e) => {
+    e.stopPropagation();
     if (!window.confirm('Remove this song from favorites?')) return;
     setIsDeleting(true);
     try {
@@ -39,402 +50,268 @@ function SongCard({ song, favoriteId, onDelete }) {
     }
   };
 
-  const handleEnrich = async () => {
-  setIsEnriching(true);
-  try {
-    console.log('🔄 Enriching song:', enrichedSong._id);
-    const res = await API.post(`/api/songs/enrich/${enrichedSong._id}`);
-    console.log('✅ Enrich response:', res.data);
-    
-    // Ažuriraj state umjesto reload-a
-    setEnrichedSong(res.data.song);
-    
-    alert(`✅ Song enriched!\nDeezer: ${res.data.enrichedWith.deezer ? '✓' : '✗'}\niTunes: ${res.data.enrichedWith.itunes ? '✓' : '✗'}\nLast.fm: ${res.data.enrichedWith.lastfm ? '✓' : '✗'}`);
-    
-    // NE RELOAD - samo postavi showDetails na true da odmah vidi podatke
-    setShowDetails(true);
-    
-  } catch (err) {
-    console.error('❌ Enrich error:', err);
-    alert('Failed to enrich song. Try again later.');
-  } finally {
-    setIsEnriching(false);
-  }
-};
-
-
-  const loadRecommendations = async () => {
-    if (recommendations.length > 0) {
-      setRecommendations([]);
-      return;
-    }
-
-    setLoadingRecs(true);
+  const handleAdd = async (e) => {
+    e.stopPropagation();
+    if (!onAdd) return;
     try {
-      console.log('🔍 Loading recommendations for:', enrichedSong._id);
-      const res = await API.get(`/api/songs/recommendations/${enrichedSong._id}`);
-      console.log('📊 Recommendations response:', res.data);
-      
-      setRecommendations(res.data.recommendations || []);
-      
-      if (res.data.recommendations.length === 0) {
-        alert('No recommendations found. Try enriching the song first!');
-      }
+      await onAdd(currentSong._id);
     } catch (err) {
-      console.error('❌ Recommendations error:', err);
-      alert('Failed to load recommendations');
-    } finally {
-      setLoadingRecs(false);
+      console.error(err);
     }
   };
 
-  // Helper funkcije
-  const formatNumber = (num) => {
-    if (!num) return '0';
-    const n = Number(num);
-    if (isNaN(n)) return '0';
-    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-    return n.toString();
-  };
-
-  const getMoodFromTags = () => {
-    if (!enrichedSong.lastfmData?.tags || enrichedSong.lastfmData.tags.length === 0) return null;
-    const moodTags = {
-      'happy': '😊',
-      'sad': '😢', 
-      'chill': '😌',
-      'energetic': '⚡',
-      'melancholic': '💙',
-      'upbeat': '🎉',
-      'romantic': '💕',
-      'angry': '😠',
-      'party': '🎊'
-    };
+  const handleCardClick = async () => {
+    try {
+      // Pošalji view tracking request (ne čekaj response)
+      API.post(`/api/songs/${currentSong._id}/view`).catch(err => {
+        console.error('Failed to track view:', err);
+      });
+      
+      console.log('👁️ View tracked for:', currentSong.title);
+    } catch (err) {
+      // Silent fail - ne blokiraj otvaranje modala
+      console.error('View tracking error:', err);
+    }
     
-    for (const tag of enrichedSong.lastfmData.tags) {
-      const tagLower = tag.toLowerCase();
-      for (const [mood, emoji] of Object.entries(moodTags)) {
-        if (tagLower.includes(mood)) {
-          return `${emoji} ${mood}`;
-        }
-      }
+    // Otvori modal
+    setShowModal(true);
+  };
+
+  const togglePlay = (e) => {
+    e.stopPropagation(); // Prevent opening modal
+    const audio = audioRef.current;
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play();
     }
-    return null;
+    setIsPlaying(!isPlaying);
   };
 
-  const getCountryFlag = (countryCode) => {
-    const flags = {
-      'HR': '🇭🇷',
-      'US': '🇺🇸',
-      'GB': '🇬🇧',
-      'DE': '🇩🇪',
-      'JP': '🇯🇵'
-    };
-    return flags[countryCode] || '🌍';
+  const handleSeek = (e) => {
+    e.stopPropagation(); // Prevent opening modal
+    const audio = audioRef.current;
+    const seekTime = (e.target.value / 100) * duration;
+    audio.currentTime = seekTime;
+    setCurrentTime(seekTime);
   };
 
-  const formatDuration = (seconds) => {
+  const handleUpdateSong = (updatedSong) => {
+    setCurrentSong(updatedSong);
+  };
+
+  const formatTime = (seconds) => {
+    if (isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const isEnriched = enrichedSong.bpm || enrichedSong.itunesData?.length > 0 || enrichedSong.lastfmData;
-  const bestCover = enrichedSong.itunesData?.[0]?.artworkUrl600 || enrichedSong.cover;
-  const previewUrl = enrichedSong.preview || enrichedSong.itunesData?.[0]?.previewUrl;
+  const bestCover = currentSong.itunesData?.[0]?.artworkUrl600 || 
+                    currentSong.youtubeData?.thumbnail || 
+                    currentSong.cover;
+
+  const isEnriched = currentSong.bpm || 
+                     currentSong.itunesData?.length > 0 || 
+                     currentSong.lastfmData || 
+                     currentSong.youtubeData ||
+                     currentSong.spotifyData;
+
+  const previewUrl = currentSong.preview || currentSong.itunesData?.[0]?.previewUrl;
+  const progressPercentage = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 p-5 mb-5">
-      
-      {/* Image Section */}
-      <div className="relative mb-4">
-        <img 
-          src={bestCover} 
-          alt={enrichedSong.title}
-          className="w-full aspect-square object-cover rounded-lg"
-        />
-        {enrichedSong.explicitLyrics && (
-          <span className="absolute top-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm font-bold">
-            🅴
-          </span>
-        )}
-      </div>
-
-      {/* Header */}
-      <div className="mb-4">
-        <h3 className="text-xl font-bold text-gray-900 mb-1 truncate">
-          {enrichedSong.title}
-        </h3>
-        <p className="text-gray-600 mb-1">{enrichedSong.artist}</p>
-        {enrichedSong.album && (
-          <p className="text-sm text-gray-500">📀 {enrichedSong.album}</p>
-        )}
-      </div>
-
-      {/* Badges */}
-      {isEnriched && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {enrichedSong.bpm && (
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-              🎵 {Math.round(enrichedSong.bpm)} BPM
-            </span>
-          )}
-          {getMoodFromTags() && (
-            <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium">
-              {getMoodFromTags()}
-            </span>
-          )}
-          {enrichedSong.lastfmData?.playcount > 0 && (
-            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-              ▶️ {formatNumber(enrichedSong.lastfmData.playcount)}
-            </span>
-          )}
-          {enrichedSong.lastfmData?.listeners > 0 && (
-            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-              👥 {formatNumber(enrichedSong.lastfmData.listeners)}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Audio Player */}
-      <div className="mb-4">
-        {previewUrl ? (
-          <audio controls className="w-full h-10">
-            <source src={previewUrl} type="audio/mpeg" />
-            Your browser does not support audio playback.
-          </audio>
-        ) : (
-          <p className="text-center py-3 bg-gray-100 rounded-lg text-gray-500 text-sm">
-            🔇 Preview not available
-          </p>
-        )}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <button 
-          onClick={handleDelete} 
-          disabled={isDeleting}
-          className="flex-1 min-w-[120px] px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white rounded-lg font-medium transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed"
-        >
-          {isDeleting ? '⏳ Deleting...' : '🗑️ Delete'}
-        </button>
-
-        {/* UVIJEK prikaži Enrich button */}
-        <button 
-          onClick={handleEnrich} 
-          disabled={isEnriching}
-          className="flex-1 min-w-[120px] px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg font-medium transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed"
-        >
-          {isEnriching ? '⏳ Loading...' : isEnriched ? '🔄 Re-enrich' : '✨ Enrich Data'}
-        </button>
-
-        {/* UVIJEK prikaži Show Details ako postoje BILO KAKVI podaci */}
-        <button 
-          onClick={() => setShowDetails(!showDetails)}
-          className="flex-1 min-w-[120px] px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 hover:shadow-md"
-        >
-          {showDetails ? '👁️ Hide Details' : '👁️ Show Details'}
-        </button>
-
-        {/* UVIJEK prikaži Similar Songs button */}
-        <button 
-          onClick={loadRecommendations}
-          disabled={loadingRecs}
-          className="flex-1 min-w-[120px] px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-300 text-white rounded-lg font-medium transition-all duration-200 hover:shadow-md disabled:cursor-not-allowed"
-        >
-          {loadingRecs ? '⏳ Loading...' : 
-           recommendations.length > 0 ? '❌ Hide Similar' : '🎯 Similar Songs'}
-        </button>
-      </div>
-
-      {/* Detailed Info Section - UVIJEK PRIKAZUJ kada je showDetails true */}
-      {showDetails && (
-        <div className="bg-gray-50 rounded-lg p-5 mt-4 space-y-5">
-          
-          {/* Contributors */}
-          {enrichedSong.contributors && enrichedSong.contributors.length > 0 && (
-            <div>
-              <h4 className="text-base font-semibold text-gray-800 mb-3">👨‍🎤 Contributors</h4>
-              <ul className="space-y-2">
-                {enrichedSong.contributors.map((c, i) => (
-                  <li key={i} className="pb-2 border-b border-gray-200 last:border-0">
-                    <strong className="text-gray-900">{c.name}</strong>
-                    <span className="text-gray-500 text-sm ml-2">({c.role})</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Last.fm Tags */}
-          {enrichedSong.lastfmData?.tags && enrichedSong.lastfmData.tags.length > 0 && (
-            <div>
-              <h4 className="text-base font-semibold text-gray-800 mb-3">🏷️ Genres & Tags</h4>
-              <div className="flex flex-wrap gap-2">
-                {enrichedSong.lastfmData.tags.map((tag, i) => (
-                  <span 
-                    key={i} 
-                    className="px-3 py-1 bg-white border border-gray-300 rounded-full text-sm text-gray-700"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* iTunes Regional Data */}
-          {enrichedSong.itunesData && enrichedSong.itunesData.length > 0 && (
-            <div>
-              <h4 className="text-base font-semibold text-gray-800 mb-3">🌍 Regional Availability</h4>
-              <div className="space-y-3">
-                {enrichedSong.itunesData.map((itunes, i) => (
-                  <div 
-                    key={i} 
-                    className="flex flex-wrap items-center gap-3 p-3 bg-white rounded-lg"
-                  >
-                    <span className="text-2xl">{getCountryFlag(itunes.country)}</span>
-                    <span className="font-semibold text-gray-900 min-w-[40px]">{itunes.country}</span>
-                    {itunes.trackPrice > 0 && (
-                      <span className="text-gray-600 text-sm">
-                        {itunes.trackPrice} {itunes.currency}
-                      </span>
-                    )}
-                    <a 
-                      href={itunes.itunesUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="ml-auto text-blue-600 hover:text-blue-700 text-sm font-medium hover:underline"
-                    >
-                      View on iTunes →
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Last.fm Stats - UVIJEK prikaži ako postoje */}
-          {enrichedSong.lastfmData && (
-            <div>
-              <h4 className="text-base font-semibold text-gray-800 mb-3">📊 Last.fm Statistics</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-white rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600 mb-1">
-                    {formatNumber(enrichedSong.lastfmData.playcount)}
-                  </div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Total Plays</div>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600 mb-1">
-                    {formatNumber(enrichedSong.lastfmData.listeners)}
-                  </div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Listeners</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Technical Info */}
-          {(enrichedSong.bpm || enrichedSong.duration || enrichedSong.releaseDate || enrichedSong.genre) && (
-            <div>
-              <h4 className="text-base font-semibold text-gray-800 mb-3">🎛️ Technical Info</h4>
-              <ul className="space-y-2">
-                {enrichedSong.bpm && (
-                  <li className="flex justify-between py-2 border-b border-gray-200">
-                    <span className="text-gray-600">Tempo:</span>
-                    <strong className="text-gray-900">{Math.round(enrichedSong.bpm)} BPM</strong>
-                  </li>
-                )}
-                {enrichedSong.duration && (
-                  <li className="flex justify-between py-2 border-b border-gray-200">
-                    <span className="text-gray-600">Duration:</span>
-                    <strong className="text-gray-900">{formatDuration(enrichedSong.duration)}</strong>
-                  </li>
-                )}
-                {enrichedSong.releaseDate && (
-                  <li className="flex justify-between py-2 border-b border-gray-200">
-                    <span className="text-gray-600">Released:</span>
-                    <strong className="text-gray-900">
-                      {new Date(enrichedSong.releaseDate).toLocaleDateString()}
-                    </strong>
-                  </li>
-                )}
-                {enrichedSong.genre && (
-                  <li className="flex justify-between py-2">
-                    <span className="text-gray-600">Genre:</span>
-                    <strong className="text-gray-900">{enrichedSong.genre}</strong>
-                  </li>
-                )}
-              </ul>
-            </div>
-          )}
-
-          {/* Ako nema nikakvih podataka */}
-          {!enrichedSong.contributors?.length && 
-           !enrichedSong.lastfmData?.tags?.length && 
-           !enrichedSong.itunesData?.length && 
-           !enrichedSong.lastfmData && 
-           !enrichedSong.bpm && 
-           !enrichedSong.duration && (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No additional data available yet.</p>
-              <button 
-                onClick={handleEnrich}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
-              >
-                ✨ Enrich Now
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Recommendations Section */}
-{recommendations.length > 0 && (
-  <div className="mt-5 pt-5 border-t-2 border-gray-200">
-    <h4 className="text-base font-semibold text-gray-800 mb-4">🎯 You might also like:</h4>
-    <div className="space-y-3">
-      {recommendations.slice(0, 5).map((rec, i) => (
-        <div 
-          key={rec._id || i} 
-          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-        >
+    <>
+      <div 
+        onClick={handleCardClick}
+        className="bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden cursor-pointer group"
+      >
+        {/* Image */}
+        <div className="relative">
           <img 
-            src={rec.cover || `https://via.placeholder.com/150/667eea/ffffff?text=${encodeURIComponent(rec.title.substring(0, 2))}`} 
-            alt={rec.title}
-            className="w-12 h-12 rounded object-cover flex-shrink-0"
-            onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/150/667eea/ffffff?text=♫';
-            }}
+            src={bestCover} 
+            alt={currentSong.title}
+            className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm text-gray-900 truncate">
-              {rec.title}
-            </div>
-            <div className="text-sm text-gray-600 truncate">
-              {rec.artist}
-            </div>
-            {rec.match && (
-              <div className="text-xs text-gray-500 mt-1">
-                Match: {Math.round(rec.match * 100)}%
-              </div>
-            )}
+          
+          {/* Overlay on hover */}
+          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
+            <span className="text-white text-5xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              🎵
+            </span>
           </div>
-          {!rec._id && (
-            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-              Not in DB
+
+          {/* Data badges */}
+          {isEnriched && (
+            <div className="absolute top-2 left-2 flex gap-1">
+              {currentSong.spotifyData && (
+                <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold">🎵</span>
+              )}
+              {currentSong.youtubeData && (
+                <span className="bg-red-500 text-white px-2 py-1 rounded text-xs font-bold">▶️</span>
+              )}
+              {currentSong.itunesData?.length > 0 && (
+                <span className="bg-gray-700 text-white px-2 py-1 rounded text-xs font-bold">🍎</span>
+              )}
+            </div>
+          )}
+
+          {currentSong.explicitLyrics && (
+            <span className="absolute top-2 right-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm font-bold">
+              🅴
             </span>
           )}
         </div>
-      ))}
-    </div>
-  </div>
-)}
-    </div>
+
+        <div className="p-4">
+          {/* Info */}
+          <div className="mb-3">
+            <h3 className="text-lg font-bold text-gray-900 mb-1 truncate group-hover:text-blue-600 transition-colors">
+              {currentSong.title}
+            </h3>
+            <p className="text-gray-600 truncate text-sm">{currentSong.artist}</p>
+          </div>
+
+          {/* Audio Player (ako ima preview) */}
+          {previewUrl && (
+            <div className="mb-3 bg-gradient-to-r from-gray-900 to-gray-800 rounded-lg p-3" onClick={(e) => e.stopPropagation()}>
+              <audio ref={audioRef} src={previewUrl} preload="metadata" />
+              
+              <div className="flex items-center gap-2 mb-2">
+                {/* Play/Pause Button */}
+                <button 
+                  onClick={togglePlay}
+                  className="w-8 h-8 flex-shrink-0 bg-white text-gray-900 rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg"
+                >
+                  {isPlaying ? (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Time */}
+                <span className="text-xs text-white flex-shrink-0">
+                  {formatTime(currentTime)}
+                </span>
+
+                {/* Progress Bar */}
+                <div className="flex-1 relative">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={progressPercentage}
+                    onChange={handleSeek}
+                    className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progressPercentage}%, #4b5563 ${progressPercentage}%, #4b5563 100%)`
+                    }}
+                  />
+                </div>
+
+                {/* Duration */}
+                <span className="text-xs text-white flex-shrink-0">
+                  {formatTime(duration)}
+                </span>
+
+                {/* Three dots menu */}
+                <button className="w-6 h-6 flex items-center justify-center hover:bg-gray-700 rounded transition-colors text-white">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Stats */}
+          {isEnriched && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {currentSong.bpm && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  {Math.round(currentSong.bpm)} BPM
+                </span>
+              )}
+              {currentSong.lastfmData?.playcount > 0 && (
+                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  ▶️ {currentSong.lastfmData.playcount >= 1000000 
+                    ? `${(currentSong.lastfmData.playcount / 1000000).toFixed(1)}M` 
+                    : `${(currentSong.lastfmData.playcount / 1000).toFixed(0)}K`}
+                </span>
+              )}
+              {currentSong.spotifyData?.popularity && (
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  🔥 {currentSong.spotifyData.popularity}%
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Action button */}
+          {onAdd ? (
+            <button
+              onClick={handleAdd}
+              disabled={added}
+              className="w-full px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed text-sm"
+            >
+              {added ? '✅ Added' : '➕ Add to favorites'}
+            </button>
+          ) : (showRemove && favoriteId && onDelete) ? (
+            <button 
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed text-sm"
+            >
+              {isDeleting ? '⏳ Deleting...' : '🗑️ Remove'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <SongModal 
+          song={currentSong} 
+          onClose={() => setShowModal(false)}
+          onUpdate={handleUpdateSong}
+        />
+      )}
+
+      <style jsx>{`
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #3b82f6;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        input[type="range"]:hover::-webkit-slider-thumb {
+          opacity: 1;
+        }
+        input[type="range"]::-moz-range-thumb {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #3b82f6;
+          cursor: pointer;
+          border: none;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+        input[type="range"]:hover::-moz-range-thumb {
+          opacity: 1;
+        }
+      `}</style>
+    </>
   );
 }
 

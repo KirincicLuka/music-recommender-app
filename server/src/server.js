@@ -35,6 +35,7 @@ require('./config/passport')(passport);
 
 app.use('/auth', authRoutes);
 app.use('/api/songs', songsRoutes); 
+app.use('/api/users', require('./routes/users'));
 
 app.get('/', (req, res) => res.send('MusicMatch backend running'));
 
@@ -49,4 +50,3 @@ mongoose.connect(process.env.MONGODB_URI)
     console.error('MongoDB connection error:', err.message);
     process.exit(1);
   });
-
