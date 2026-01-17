@@ -1,90 +1,115 @@
 const mongoose = require('mongoose');
 
-const SongSchema = new mongoose.Schema({
-  deezerId: { type: String, unique: true, required: true },
-  title: { type: String, required: true },
-  artist: { type: String, required: true },
-  album: String,
-  preview: String,
-  cover: String,
-  duration: Number,
-  rank: Number,
-  releaseDate: String,
-  genre: String,
-  lyrics: String,
-  musicVideo: String,
-  mood: String,
-  
-  // DEEZER OBOGAĆENI PODACI
-  bpm: Number,                    // Tempo
-  gain: Number,                   // Audio gain/normalizacija
-  explicitLyrics: Boolean,        // Eksplicitni sadržaj
-  contributors: [{                // Producenti, featured artists
-    id: Number,
-    name: String,
-    role: String
-  }],
-  
-  // iTUNES PODACI (višestruke regije)
- itunesData: {
-  type: [{
-    country: String,
-    itunesId: Number,
-    itunesUrl: String,
-    previewUrl: String,
-    artworkUrl600: String,
-    trackPrice: Number,
-    currency: String,
-    collectionName: String,
-    discNumber: Number,
-    trackNumber: Number,
-    isrc: String
-  }],
-  default: []
-},
-  
-  // LAST.FM PODACI (za preporuke)
-  lastfmData: {
-    playcount: Number,            // Ukupno slušanja
-    listeners: Number,            // Broj unique listenera
-    tags: [String],               // Žanrovi i tagovi
-    mbid: String,                 // MusicBrainz ID
-    similarTracks: [{             // Slične pjesme
-      name: String,
-      artist: String,
-      match: Number               // 0-1 similarity score
-    }]
+const SongSchema = new mongoose.Schema(
+  {
+    // OSNOVNI PODACI
+    deezerId: { type: String, unique: true, required: true },
+    title: { type: String, required: true },
+    artist: { type: String, required: true },
+    album: String,
+    preview: String,
+    cover: String,
+    duration: Number,
+    rank: Number,
+    releaseDate: String,
+    genre: String,
+    mood: String,
+    lyrics: String,
+    musicVideo: String,
+
+    // POPULARNOST / INTERAKCIJA
+    popularity: Number,
+    viewCount: {
+      type: Number,
+      default: 0
+    },
+    lastViewedAt: {
+      type: Date,
+      default: null
+    },
+
+    // DEEZER OBOGAĆENI PODACI
+    bpm: Number,
+    gain: Number,
+    explicitLyrics: Boolean,
+    contributors: [
+      {
+        id: Number,
+        name: String,
+        role: String
+      }
+    ],
+
+    // ITUNES PODACI
+    itunesData: {
+      type: [
+        {
+          country: String,
+          itunesId: Number,
+          itunesUrl: String,
+          previewUrl: String,
+          artworkUrl600: String,
+          trackPrice: Number,
+          currency: String,
+          collectionName: String,
+          discNumber: Number,
+          trackNumber: Number,
+          isrc: String
+        }
+      ],
+      default: []
+    },
+
+    // LAST.FM PODACI (RECOMMENDATIONS)
+    lastfmData: {
+      playcount: Number,
+      listeners: Number,
+      tags: [String],
+      mbid: String,
+      similarTracks: [
+        {
+          name: String,
+          artist: String,
+          match: Number // 0–1
+        }
+      ]
+    },
+
+    // YOUTUBE PODACI
+    youtubeData: {
+      videoId: String,
+      views: Number,
+      likes: Number,
+      commentCount: Number,
+      sentiment: {
+        positive: Number,
+        neutral: Number,
+        negative: Number,
+        score: Number
+      },
+      fetchedAt: Date
+    },
+
+    // MUSICBRAINZ PODACI
+    musicbrainzData: {
+      mbid: String,
+      rating: {
+        value: Number, // 0–5
+        votes: Number
+      },
+      releaseGroupId: String
+    }
   },
-  popularity: Number,
-  youtubeData: {
-  videoId: String,
-  views: Number,
-  likes: Number,
-  commentCount: Number,
+  {
+    createdAt: { type: Date, default: Date.now }
+  }
+);
 
-  sentiment: {
-    positive: Number,
-    neutral: Number,
-    negative: Number,
-    score: Number
-  },
-
-  fetchedAt: Date
-},    
-      // Kombinirana metrike popularnosti
-  musicbrainzData: {
-  mbid: String,
-
-  rating: {
-    value: Number,       // 0–5
-    votes: Number        // number of users who rated
-  },
-
-  releaseGroupId: String,
-}, 
-  createdAt: { type: Date, default: Date.now }
+// TEXT SEARCH INDEX
+SongSchema.index({
+  title: 'text',
+  artist: 'text',
+  album: 'text'
 });
-
-SongSchema.index({ title: 'text', artist: 'text', album: 'text' });
 
 module.exports = mongoose.model('Song', SongSchema);

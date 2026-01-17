@@ -386,4 +386,32 @@ router.get('/test-lastfm', async (req, res) => {
   }
 });
 
+router.post('/:songId/view', async (req, res) => {
+  try {
+    const song = await Song.findById(req.params.songId);
+    
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    // Povećaj counter i ažuriraj vrijeme
+    song.viewCount = (song.viewCount || 0) + 1;
+    song.lastViewedAt = new Date();
+    
+    await song.save();
+    
+    console.log(`👁️ View tracked: ${song.title} (${song.viewCount} views)`);
+    
+    res.json({
+      success: true,
+      viewCount: song.viewCount,
+      message: 'View tracked'
+    });
+
+  } catch (err) {
+    console.error('❌ View tracking error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
