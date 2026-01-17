@@ -232,6 +232,11 @@ function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove
           {/* Quick Stats */}
           {isEnriched && (
             <div className="flex flex-wrap gap-2 mb-3">
+              {Number.isFinite(currentSong.popularity) && (
+                <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                  ⭐ {currentSong.popularity}
+                </span>
+              )}
               {currentSong.bpm && (
                 <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                   {Math.round(currentSong.bpm)} BPM

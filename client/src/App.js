@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Profile from './pages/Profile';
 import SavedSongs from './pages/SavedSongs';
 import GenreSelection from './components/GenreSelection';
+import Popular from './pages/Popular';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import API from './api';
 
@@ -85,6 +86,7 @@ return (
           <Route path="/" element={<Profile user={user} />} />
           <Route path="/saved" element={<SavedSongs user={user} />} />
           <Route path="*" element={<Profile user={user} />} />
+          <Route path="/popular" element={<Popular user={user} />} />
         </>
       )}
     </Routes>
