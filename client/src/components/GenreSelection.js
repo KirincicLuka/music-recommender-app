@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import API from '../api';
 
-function GenreSelection({ user, onComplete }) {
+function GenreSelection({ user, onComplete, initialGenres, showSkip = true }) {
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (typeof initialGenres === 'undefined') return;
+    setSelectedGenres(Array.isArray(initialGenres) ? initialGenres : []);
+  }, [initialGenres]);
+  
   // Preddefinirani žanrovi - ne ovisi o bazi
   const availableGenres = [
     'Pop', 
@@ -41,7 +46,7 @@ function GenreSelection({ user, onComplete }) {
 
   const handleSubmit = async () => {
     if (selectedGenres.length === 0) {
-      alert('Molimo odaberite barem jedan žanr!');
+      alert('PLease choose at least one genre!');
       return;
     }
 
@@ -56,13 +61,13 @@ function GenreSelection({ user, onComplete }) {
       onComplete();
     } catch (err) {
       console.error('Failed to save preferences:', err);
-      alert('Greška prilikom spremanja preferencija. Pokušajte ponovo.');
+      alert('Failed to save preferences. Try again.');
       setSaving(false);
     }
   };
 
   const handleSkip = async () => {
-    if (!window.confirm('Preskočiti personalizaciju? Moći ćete to postaviti kasnije u profilu.')) return;
+    if (!window.confirm('Skip genre selection? You can do it later if you want.')) return;
 
     setSaving(true);
     try {
@@ -70,7 +75,7 @@ function GenreSelection({ user, onComplete }) {
       onComplete();
     } catch (err) {
       console.error('Failed to skip onboarding:', err);
-      alert('Greška. Pokušajte ponovo.');
+      alert('Error. Try again.');
       setSaving(false);
     }
   };
@@ -85,10 +90,10 @@ function GenreSelection({ user, onComplete }) {
             <span className="text-7xl">🎵</span>
           </div>
           <h2 className="text-4xl font-bold text-gray-800 mb-3">
-            Dobrodošli, {user.ime || 'korisniče'}!
+            Welcome, {user.ime || 'korisniče'}!
           </h2>
           <p className="text-gray-600 text-lg leading-relaxed">
-            Odaberite žanrove glazbe koje volite kako bismo vam mogli preporučiti najbolje pjesme
+            Choose music genres you love and we will recommend you best songs
           </p>
         </div>
 
@@ -138,26 +143,23 @@ function GenreSelection({ user, onComplete }) {
             {saving ? (
               <span className="flex items-center justify-center">
                 <span className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></span>
-                Spremam preferencije...
+                Saving preferences...
               </span>
             ) : (
-              'Nastavi'
+              'Continue'
             )}
           </button>
 
-          <button
-            onClick={handleSkip}
-            disabled={saving}
-            className="w-full py-3 text-gray-500 hover:text-gray-700 transition-colors duration-200 text-sm underline"
-          >
-            Preskoči za sada
-          </button>
+          {showSkip && (
+            <button
+              onClick={handleSkip}
+              disabled={saving}
+              className="w-full py-3 text-gray-500 hover:text-gray-700 transition-colors duration-200 text-sm underline"
+            >
+              Skip for now
+            </button>
+          )}
         </div>
-
-        {/* Info note */}
-        <p className="text-center text-gray-400 text-xs mt-6">
-          💡 Možete promijeniti preferencije bilo kada u postavkama profila
-        </p>
       </div>
     </div>
   );
