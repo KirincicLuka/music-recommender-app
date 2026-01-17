@@ -6,14 +6,15 @@ const router = express.Router();
 router.get('/24h', async (req, res) => {
   try {
     const snapshotIds = await SongSnapshot
-      .distinct('snapshotId')
-      .sort({ snapshotId: -1 });
+      .distinct('snapshotId');
 
     if (snapshotIds.length < 2) {
       return res.status(400).json({ error: 'Not enough snapshots' });
     }
-
-    const [latestId, previousId] = snapshotIds;
+    console.log(snapshotIds);
+    const latestId = snapshotIds[snapshotIds.length - 1];
+    const previousId = snapshotIds[snapshotIds.length - 2];
+    console.log(latestId, previousId);
 
     const [latest, previous] = await Promise.all([
       SongSnapshot.find({ snapshotId: latestId }),
@@ -50,7 +51,7 @@ router.get('/24h', async (req, res) => {
           songId: s.songId,
           currentScore: s.score
         }));
-
+        console.log('All deltas zero, returning fallback popular songs');
       return res.json(fallback);
     }
 
@@ -79,16 +80,15 @@ router.get('/24h', async (req, res) => {
 router.get('/lastweek', async (req, res) => {
   try {
     const allSnapshotIds = await SongSnapshot
-      .distinct('snapshotId')
-      .sort({ snapshotId: -1 });
+      .distinct('snapshotId');
     const snapshotIds = allSnapshotIds.slice(0, 7);
 
     if (snapshotIds.length < 7) {
       return res.status(400).json({ error: 'Not enough snapshots' });
     }
 
-    const latestId = snapshotIds[0];
-    const previousId = snapshotIds[snapshotIds.length - 1]; 
+    const latestId = snapshotIds[snapshotIds.length - 1];
+    const previousId = snapshotIds[0]; 
 
     const [latest, previous] = await Promise.all([
       SongSnapshot.find({ snapshotId: latestId }),

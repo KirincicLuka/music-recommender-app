@@ -14,7 +14,7 @@ mongoose.connect(process.env.MONGODB_URI)
 async function createSnapshot() {
   const snapshotId = new Date().toISOString(); 
   const songs = await Song.find();
-  let maxcount = await Song.findOne().sort({ counter: -1 }).limit(1).then(s => s ? s.counter : 1) || 1;
+  let maxcount = await Song.findOne().sort({ viewCount: -1 }).limit(1).then(s => s ? s.viewCount : 1) || 1;
   let maxSpotify = await Song.findOne().sort({ popularity: -1 }).limit(1).then(s => s ? s.popularity : 1) || 1;
   let maxLastfmPlaycount = await Song.findOne().sort({ 'lastfmData.playcount': -1 }).limit(1).then(s => s?.lastfmData?.playcount || 1) || 1;
   let maxLastfmListeners = await Song.findOne().sort({ 'lastfmData.listeners': -1 }).limit(1).then(s => s?.lastfmData?.listeners || 1) || 1;
@@ -23,7 +23,7 @@ async function createSnapshot() {
   let maxYoutubeLikes = await Song.findOne().sort({ 'youtubeData.likes': -1 }).limit(1).then(s => s?.youtubeData?.likes || 1) || 1;
   for (const song of songs) {
     let score = 0;
-    let count = song.counter || 0;
+    let count = song.viewCount || 0;
     let spotifyPopularity = song.popularity || 0;
     let lastfmPlaycount = song.lastfmData?.playcount || 0;
     let lastfmListeners = song.lastfmData?.listeners || 0;
@@ -50,7 +50,7 @@ async function createSnapshot() {
             youtubeLikes / maxYoutubeLikes * weights.youtube_likes;
     await SongSnapshot.create({
       songId: song._id,
-      counter: song.counter || 0,
+      counter: song.viewCount || 0,
       score,
       snapshotId,
       createdAt: new Date()
