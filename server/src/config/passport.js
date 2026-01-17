@@ -46,16 +46,20 @@ module.exports = function (passport) {
         clientID: process.env.FACEBOOK_APP_ID,
         clientSecret: process.env.FACEBOOK_APP_SECRET,
         callbackURL: '/auth/facebook/callback',
-        profileFields: ['id', 'displayName', 'emails', 'photos'],
+        profileFields: ['id', 'displayName', 'name', 'emails', 'photos'],
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
           let user = await User.findOne({ facebookId: profile.id });
 
+          const ime = profile.name?.givenName || profile.displayName || '';
+          const prezime = profile.name?.familyName || '';
+
           if (!user) {
             user = await User.create({
               facebookId: profile.id,
-              username: profile.displayName,
+              ime,
+              prezime,
               email: profile.emails?.[0]?.value || '',
               avatar: profile.photos?.[0]?.value || '',
             });
