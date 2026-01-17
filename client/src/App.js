@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import SavedSongs from './pages/SavedSongs';
@@ -68,24 +67,30 @@ function App() {
     );
   }
 
-  // Ako korisnik nije prijavljen
-  if (!user) return <Login />;
-
-  // Ako je prijavljen ali treba onboarding (odabir žanrova)
-  if (needsOnboarding) {
-    return <GenreSelection user={user} onComplete={handleOnboardingComplete} />;
-  }
-
   // Normalan flow aplikacije
-  return (
-    <Router>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Profile user={user} />} />
-        <Route path="/saved" element={<SavedSongs user={user} />} />
-      </Routes>
-    </Router>
-  );
+return (
+  <Router>
+
+    <Routes>
+      {/* Login route */}
+      <Route path="/login" element={<Login />} />
+
+      {/* Ako nije prijavljen, sve vodi na login */}
+      {!user ? (
+        <Route path="*" element={<Login />} />
+      ) : needsOnboarding ? (
+        <Route path="*" element={<GenreSelection user={user} onComplete={handleOnboardingComplete} />} />
+      ) : (
+        <>
+          <Route path="/" element={<Profile user={user} />} />
+          <Route path="/saved" element={<SavedSongs user={user} />} />
+          <Route path="*" element={<Profile user={user} />} />
+        </>
+      )}
+    </Routes>
+  </Router>
+);
+
 }
 
 export default App;

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import SongList from '../components/SongList';
 import API from '../api';
+import Navbar from '../components/Navbar';
+import GenreSelection from '../components/GenreSelection';
 
 // Helper: animacija brojanja do targeta
 function useCountUp(target, durationMs = 900) {
@@ -70,6 +72,8 @@ function Profile({ user }) {
 
   // User favorites count
   const [userFavoritesCount, setUserFavoritesCount] = useState(0);
+
+  const [showGenreModal, setShowGenreModal] = useState(false);
 
   // Fetch global stats
   useEffect(() => {
@@ -152,6 +156,33 @@ function Profile({ user }) {
 
     // Refresh recommendations
     setLoadingRecommendations(true);
+      try {
+        const res = await API.get(`/api/users/${user.id}/recommendations`);
+        setRecommendations(res.data.recommendations || []);
+        setRecommendationsStats(res.data.stats);
+      } catch (err) {
+        console.error('Failed to refresh recommendations:', err);
+      } finally {
+        setLoadingRecommendations(false);
+      }
+    };
+
+  const handleGenresUpdated = async () => {
+  setShowGenreModal(false);
+
+  // refresh preferences
+  setPreferencesLoading(true);
+  try {
+    const res = await API.get(`/api/users/${user.id}`);
+    setUserPreferences(res.data);
+  } catch (err) {
+    console.error('Failed to refresh user preferences:', err);
+  } finally {
+    setPreferencesLoading(false);
+  }
+
+  // refresh recommendations
+  setLoadingRecommendations(true);
     try {
       const res = await API.get(`/api/users/${user.id}/recommendations`);
       setRecommendations(res.data.recommendations || []);
@@ -163,7 +194,10 @@ function Profile({ user }) {
     }
   };
 
+
   return (
+    <>
+    <Navbar />
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
       <div className="container mx-auto px-4 py-8">
         
@@ -179,7 +213,7 @@ function Profile({ user }) {
             )}
             <div>
               <h1 className="text-4xl font-bold mb-1">
-                Dobrodošao, {user.ime || 'korisniče'}! 👋
+                Welcome, {user.ime || 'korisniče'}! 👋
               </h1>
               <p className="text-purple-100 text-lg">
                 Discover and save your favorite music
@@ -212,7 +246,7 @@ function Profile({ user }) {
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
           <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
             <span className="text-3xl">🔍</span>
-            Pretraži pjesme
+            Search songs
           </h3>
           <SearchBar 
             userId={user.id} 
@@ -225,27 +259,27 @@ function Profile({ user }) {
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
               <span className="text-4xl">🎯</span>
-              Preporučeno za tebe
+              Recommended for you
             </h3>
             {!loadingRecommendations && recommendations.length > 0 && (
               <div className="flex items-center gap-3">
                 <span className="text-sm text-gray-600 bg-purple-100 px-4 py-2 rounded-full font-medium">
-                  {recommendations.length} {recommendations.length === 1 ? 'pjesma' : 'pjesama'}
+                  {recommendations.length} {recommendations.length === 1 ? 'song' : 'songs'}
                 </span>
                 {recommendationsStats && (
                   <button 
                     onClick={() => {
                       alert(
-                        `📊 Breakdown preporuka:\n\n` +
-                        `🎸 Žanrovi (${userPreferences?.preferredGenres?.join(', ') || 'N/A'}): ${recommendationsStats.fromGenres}\n` +
-                        `🔄 Slične favoritima: ${recommendationsStats.fromFavorites}\n` +
-                        `👥 Od korisnika sa sličnim ukusom: ${recommendationsStats.fromCollaborative}\n\n` +
-                        `📈 Ukupno: ${recommendationsStats.total} preporuka`
+                        `📊 Breakdown recommendation:\n\n` +
+                        `🎸 Genres (${userPreferences?.preferredGenres?.join(', ') || 'N/A'}): ${recommendationsStats.fromGenres}\n` +
+                        `🔄 Similar to favorites: ${recommendationsStats.fromFavorites}\n` +
+                        `👥 From other users with similar taste in music: ${recommendationsStats.fromCollaborative}\n\n` +
+                        `📈 Total: ${recommendationsStats.total} recommendations`
                       );
                     }}
                     className="text-xs text-purple-600 hover:text-purple-800 font-medium underline cursor-pointer"
                   >
-                    📊 Statistika
+                    📊 Statistics
                   </button>
                 )}
               </div>
@@ -255,7 +289,7 @@ function Profile({ user }) {
           {loadingRecommendations ? (
             <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
-              <p className="text-gray-600 mt-4 text-lg">Učitavam personalizirane preporuke...</p>
+              <p className="text-gray-600 mt-4 text-lg">Loading personal recommendations...</p>
             </div>
           ) : recommendations.length > 0 ? (
             <div className="bg-white rounded-2xl shadow-sm p-6">
@@ -264,11 +298,11 @@ function Profile({ user }) {
           ) : (
             <div className="text-center py-20 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-300">
               <span className="text-6xl mb-4 block">🎵</span>
-              <p className="text-gray-700 text-xl font-semibold mb-2">Nema dostupnih preporuka</p>
+              <p className="text-gray-700 text-xl font-semibold mb-2">No available recommendations.</p>
               <p className="text-gray-500 text-base max-w-md mx-auto">
                 {userPreferences?.preferredGenres?.length > 0 
-                  ? 'Dodajte više pjesama u favorite ili pričekajte da sustav indeksira više sadržaja!'
-                  : 'Odaberite svoje omiljene žanrove kako bismo vam mogli dati personalizirane preporuke!'
+                  ? 'Save songs and discover more content!'
+                  : 'Choose your favorite genres to get music recommendations!'
                 }
               </p>
             </div>
@@ -276,27 +310,65 @@ function Profile({ user }) {
         </div>
         </div>
         {/* ==================== OVDJE ZAVRŠAVA RECOMMENDATIONS SEKCIJA ==================== */}
-        {/* User Preferred Genres Section */}
-        {!preferencesLoading && userPreferences?.preferredGenres && userPreferences.preferredGenres.length > 0 && (
-          <div className="mb-8 bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border-2 border-purple-200 shadow-sm">
-            <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+        {/* User Preferred Genres Section (always visible) */}
+        <div className="mb-8 bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border-2 border-purple-200 shadow-sm">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
               <span className="text-2xl">💜</span>
-              Tvoji omiljeni žanrovi
+              Your preferred genres
             </h4>
-            <div className="flex flex-wrap gap-2">
-              {userPreferences.preferredGenres.map(genre => (
-                <span 
-                  key={genre}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-purple-700 transition-colors"
-                >
-                  {genre}
-                </span>
-              ))}
+
+            <button
+              onClick={() => setShowGenreModal(true)}
+              className="px-4 py-2 rounded-xl font-semibold text-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm"
+            >
+              {userPreferences?.preferredGenres?.length > 0 ? 'Edit genres' : 'Choose genres'}
+            </button>
+          </div>
+
+          <div className="mt-4">
+            {preferencesLoading ? (
+              <p className="text-gray-500">Loading genres...</p>
+            ) : userPreferences?.preferredGenres?.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {userPreferences.preferredGenres.map((genre) => (
+                  <span
+                    key={genre}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-purple-700 transition-colors"
+                  >
+                    {genre}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-600">
+                You haven’t selected any genres yet. Click <strong>Choose genres</strong> to personalize recommendations.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Genre modal */}
+        {showGenreModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setShowGenreModal(false)}
+            />
+            <div className="relative w-full max-w-5xl">
+              <GenreSelection
+                user={user}
+                initialGenres={userPreferences?.preferredGenres || []}
+                showSkip={false}
+                onComplete={handleGenresUpdated}
+              />
             </div>
           </div>
         )}
+
       </div>
     </div>
+    </>
   );
 }
 

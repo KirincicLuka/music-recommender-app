@@ -1,8 +1,11 @@
 import React from 'react';
 import SongList from '../components/SongList';
+import Navbar from '../components/Navbar';
 
 function SavedSongs({ user }) {
   return (
+    <>
+    <Navbar />
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="bg-white rounded-3xl shadow-2xl p-8 mb-8 backdrop-blur-lg bg-opacity-90">
@@ -23,6 +26,7 @@ function SavedSongs({ user }) {
         <SongList userId={user.id} mode="favorites" />
       </div>
     </div>
+    </>
   );
 }
 
