@@ -52,7 +52,10 @@ router.get('/24h', async (req, res) => {
           currentScore: s.score
         }));
         console.log('All deltas zero, returning fallback popular songs');
-      return res.json(fallback);
+        const populatedResult = await SongSnapshot.populate(fallback, {
+        path: 'songId'
+        });
+        return res.json(populatedResult);
     }
 
     // Get top 5 songs by delta (biggest difference)
@@ -69,8 +72,10 @@ router.get('/24h', async (req, res) => {
       .slice(0, 5);
 
     const result = [...topDelta, ...topScore];
-
-    res.json(result);
+    const populatedResult = await SongSnapshot.populate(result, {
+    path: 'songId'
+    });
+    res.json(populatedResult);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -83,7 +88,7 @@ router.get('/lastweek', async (req, res) => {
       .distinct('snapshotId');
     const snapshotIds = allSnapshotIds.slice(0, 7);
 
-    if (snapshotIds.length < 7) {
+    if (snapshotIds.length < 2) {
       return res.status(400).json({ error: 'Not enough snapshots' });
     }
 
@@ -125,8 +130,10 @@ router.get('/lastweek', async (req, res) => {
           songId: s.songId,
           currentScore: s.score
         }));
-
-      return res.json(fallback);
+        const populatedResult = await SongSnapshot.populate(fallback, {
+        path: 'songId'
+        });
+        return res.json(populatedResult);
     }
 
     // Get top 5 songs by delta (biggest difference)
@@ -143,8 +150,10 @@ router.get('/lastweek', async (req, res) => {
       .slice(0, 5);
 
     const result = [...topDelta, ...topScore];
-
-    res.json(result);
+    const populatedResult = await SongSnapshot.populate(result, {
+    path: 'songId'
+    });
+    res.json(populatedResult);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
