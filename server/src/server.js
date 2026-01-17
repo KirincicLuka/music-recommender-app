@@ -36,7 +36,7 @@ require('./config/passport')(passport);
 app.use('/auth', authRoutes);
 app.use('/api/songs', songsRoutes); 
 app.use('/api/users', require('./routes/users'));
-
+app.use('/api/popular', require('./routes/popular'));
 app.get('/', (req, res) => res.send('MusicMatch backend running'));
 
 const PORT = process.env.PORT || 4000;
