@@ -99,6 +99,9 @@ async function enrichSong(song) {
 
   const similarTracks = await getSimilarTracks(song.title, song.artist);
 
+  // Take first tag as genre (or null if no tags)
+  const genre = info.tags.length > 0 ? info.tags[0] : null;
+
   song.lastfmData = {
     playcount: info.playcount,
     listeners: info.listeners,
@@ -107,11 +110,15 @@ async function enrichSong(song) {
     similarTracks
   };
 
+  // Update genre field
+  if (genre) song.genre = genre;
+
   await song.save();
   return true;
 }
 
-async function enrichAllSongs({ onlyMissing = true, limit = 50 } = {}) {
+
+async function enrichAllSongs({ onlyMissing = true, limit = 500 } = {}) {
   console.log('🔍 Fetching songs from database...');
 
   const query = onlyMissing
@@ -164,3 +171,10 @@ module.exports = {
   getSimilarTracks
 };
 
+if (require.main === module) {
+  runEnrichment().catch(err => {
+    console.error('❌ Enrichment job failed', err);
+    mongoose.disconnect();
+    process.exit(1);
+  });
+}
