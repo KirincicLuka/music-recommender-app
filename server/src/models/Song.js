@@ -70,8 +70,18 @@ const SongSchema = new mongoose.Schema({
   },
 
   fetchedAt: Date
-},          // Kombinirana metrike popularnosti
-  
+},    
+      // Kombinirana metrike popularnosti
+  musicbrainzData: {
+  mbid: String,
+
+  rating: {
+    value: Number,       // 0–5
+    votes: Number        // number of users who rated
+  },
+
+  releaseGroupId: String,
+}, 
   createdAt: { type: Date, default: Date.now }
 });
 
