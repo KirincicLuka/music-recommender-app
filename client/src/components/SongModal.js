@@ -7,6 +7,8 @@ function SongModal({ song, onClose, onUpdate }) {
   const [enrichedSong, setEnrichedSong] = useState(song);
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
+  const [recsStatus, setRecsStatus] = useState('idle'); 
+
 
   const handleEnrich = async () => {
     setIsEnriching(true);
@@ -32,29 +34,38 @@ function SongModal({ song, onClose, onUpdate }) {
   };
 
   const loadRecommendations = async () => {
+    // ako su vec ucitane, samo prebaci na tab
     if (recommendations.length > 0) {
-      setRecommendations([]);
+      setActiveTab('recommendations');
       return;
     }
 
     setLoadingRecs(true);
+    setRecsStatus('loading');
+
     try {
       const res = await API.get(`/api/songs/recommendations/${enrichedSong._id}`);
-      
-      if (!res.data.recommendations || res.data.recommendations.length === 0) {
-        alert('No similar songs found.');
+      const recs = res.data.recommendations || [];
+
+      if (recs.length === 0) {
+        setRecommendations([]);
+        setRecsStatus('empty');
+        setActiveTab('recommendations');
         return;
       }
-      
-      setRecommendations(res.data.recommendations);
+
+      setRecommendations(recs);
+      setRecsStatus('loaded');
       setActiveTab('recommendations');
     } catch (err) {
       console.error(err);
-      alert('Failed to load recommendations');
+      setRecsStatus('error');
+      setActiveTab('recommendations');
     } finally {
       setLoadingRecs(false);
     }
   };
+
 
   // Helper functions
   const formatNumber = (num) => {
@@ -149,17 +160,17 @@ function SongModal({ song, onClose, onUpdate }) {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 p-4 border-b border-gray-200 bg-gray-50">
-          <button 
+        {/* Action Buttons
+        <div className="flex gap-2 p-4 border-b border-gray-200 bg-gray-50"> */}
+          {/* <button 
             onClick={handleEnrich} 
             disabled={isEnriching}
             className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed"
           >
             {isEnriching ? '⏳ Loading...' : isEnriched ? '🔄 Re-enrich' : '✨ Enrich Data'}
-          </button>
+          </button> */}
           
-          <button 
+          {/* <button 
             onClick={loadRecommendations}
             disabled={loadingRecs}
             className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-300 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed"
@@ -188,7 +199,7 @@ function SongModal({ song, onClose, onUpdate }) {
               ▶️ YouTube
             </a>
           )}
-        </div>
+        </div> */}
 
         {/* Tabs */}
         <div className="flex gap-1 px-4 pt-4 border-b border-gray-200 overflow-x-auto">
@@ -232,18 +243,20 @@ function SongModal({ song, onClose, onUpdate }) {
           >
             🌍 Regional
           </button>
-          {recommendations.length > 0 && (
-            <button
-              onClick={() => setActiveTab('recommendations')}
-              className={`px-4 py-2 font-medium whitespace-nowrap transition-all ${
-                activeTab === 'recommendations' 
-                  ? 'text-blue-600 border-b-2 border-blue-600' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              🎯 Similar ({recommendations.length})
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setActiveTab('recommendations');
+              loadRecommendations();
+            }}
+            className={`px-4 py-2 font-medium whitespace-nowrap transition-all ${
+              activeTab === 'recommendations'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🎯 Similar {recommendations.length > 0 ? `(${recommendations.length})` : ''}
+          </button>
+
         </div>
 
         {/* Content - Scrollable */}
@@ -537,37 +550,38 @@ function SongModal({ song, onClose, onUpdate }) {
           {activeTab === 'recommendations' && (
             <div className="space-y-4">
               <h4 className="text-lg font-semibold text-gray-800">🎯 Similar Songs</h4>
-              {recommendations.map((rec, i) => (
-                <div 
-                  key={rec._id || i} 
+
+              {recsStatus === 'loading' && (
+                <div className="text-center py-12 text-gray-500">⏳ Loading similar songs...</div>
+              )}
+
+              {recsStatus === 'empty' && (
+                <div className="text-center py-12 text-gray-500">Not found any similar songs.</div>
+              )}
+
+              {recsStatus === 'error' && (
+                <div className="text-center py-12 text-gray-500">Error while fetching recommendations.</div>
+              )}
+
+              {recsStatus === 'loaded' && recommendations.map((rec, i) => (
+                <div
+                  key={rec._id || i}
                   className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg hover:shadow-md transition-all cursor-pointer"
                 >
-                  <img 
-                    src={rec.cover || `https://via.placeholder.com/150/667eea/ffffff?text=${encodeURIComponent(rec.title.substring(0, 2))}`}
+                  <img
+                    src={rec.cover || '/placeholder.png'}
                     alt={rec.title}
-                    className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/150/667eea/ffffff?text=♫';
-                    }}
+                    className="w-14 h-14 rounded-lg object-cover"
                   />
+
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-900 truncate">
+                    <div className="font-semibold text-gray-900">
                       {rec.title}
                     </div>
-                    <div className="text-sm text-gray-600 truncate">
+                    <div className="text-sm text-gray-600">
                       {rec.artist}
                     </div>
-                    {rec.match && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {Math.round(rec.match * 100)}% match
-                      </div>
-                    )}
                   </div>
-                  {!rec._id && (
-                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                      Not in DB
-                    </span>
-                  )}
                 </div>
               ))}
             </div>
