@@ -7,19 +7,10 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 const Song = require("../models/Song");
 
-// Sentiment model (local, free)
 const { pipeline } = require("@xenova/transformers");
-
-/* ─────────────────────────────────────────────── */
-/* CONFIG */
-/* ─────────────────────────────────────────────── */
 
 const YT_BASE = "https://www.googleapis.com/youtube/v3";
 const MAX_COMMENTS = 20;
-
-/* ─────────────────────────────────────────────── */
-/* YOUTUBE HELPERS */
-/* ─────────────────────────────────────────────── */
 
 async function searchYoutubeVideo(title, artist) {
   const query = `${title} ${artist} official music video`;
@@ -75,14 +66,9 @@ async function getComments(videoId) {
     );
   } catch (err) {
     console.warn(`⚠️ Could not fetch comments for ${videoId}:`, err.response?.data?.error || err.message);
-    return []; // fallback to empty comments
+    return []; 
   }
 }
-
-
-/* ─────────────────────────────────────────────── */
-/* SENTIMENT */
-/* ─────────────────────────────────────────────── */
 
 async function analyzeSentiment(comments, classifier) {
   let positive = 0;
@@ -109,15 +95,9 @@ async function analyzeSentiment(comments, classifier) {
   };
 }
 
-/* ─────────────────────────────────────────────── */
-/* JOB */
-/* ─────────────────────────────────────────────── */
-
 async function run() {
-  console.log("🚀 YouTube enrichment started");
 
   await mongoose.connect(process.env.MONGODB_URI);
-  console.log("✅ MongoDB connected");
 
   const classifier = await pipeline(
     "sentiment-analysis",
@@ -129,14 +109,11 @@ async function run() {
     deezerId: { $exists: true, $ne: null },
   });
 
-  console.log(`🎵 Songs to process: ${songs.length}`);
-
   for (const song of songs) {
-    console.log(`➡️ ${song.title} – ${song.artist}`);
 
     const videoId = await searchYoutubeVideo(song.title, song.artist);
     if (!videoId) {
-      console.log("⚠️ No YouTube video found");
+      console.log("No YouTube video found");
       continue;
     }
 
@@ -157,19 +134,14 @@ async function run() {
 
     await song.save();
 
-    console.log(
-      `✅ views=${stats.views} | likes=${stats.likes} | sentiment=${sentiment.score}`
-    );
-
-    // QUOTA SAFETY
     await new Promise((r) => setTimeout(r, 600));
   }
 
-  console.log("🏁 Job finished");
+  console.log("Job finished");
   await mongoose.disconnect();
 }
 
 run().catch((err) => {
-  console.error("❌ Job failed", err);
+  console.error("Job failed", err);
   process.exit(1);
 });

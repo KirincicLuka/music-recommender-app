@@ -8,19 +8,16 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, index: true },
   avatar: String,
   
-  // Eksplicitne preferencije korisnika
   preferredGenres: {
     type: [String],
     default: []
   },
   
-  // Onboarding status
   onboardingCompleted: {
     type: Boolean,
     default: false
   },
   
-  // Preferirana raspoloženja (mood)
   preferredMoods: {
     type: [String],
     default: []
@@ -45,7 +42,7 @@ const UserSchema = new mongoose.Schema({
       default: null
     },
     confidence: {
-      type: Number, // 0-100
+      type: Number, 
       default: 0
     }
   },
@@ -58,23 +55,18 @@ const UserSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Index za brže pretraživanje
 UserSchema.index({ email: 1, googleId: 1, facebookId: 1 });
 
-// ✅ VIRTUAL: Kombinirani žanrovi (eksplicitni + indirektni)
 UserSchema.virtual('allPreferredGenres').get(function () {
   const explicit = this.preferredGenres || [];
   const indirect = this.indirectPreferences?.detectedGenres || [];
   return [...new Set([...explicit, ...indirect])];
 });
 
-// ✅ PRE-SAVE HOOK: Ažuriraj effectiveGenres
-// Koristi async hook bez "next" (stabilnije)
 UserSchema.pre('save', function () {
   const explicit = this.preferredGenres || [];
   const indirect = this.indirectPreferences?.detectedGenres || [];
 
-  // Hybrid: eksplicitni + max 3 indirektna (da ne preplavi)
   this.effectiveGenres = [...new Set([...explicit, ...indirect.slice(0, 3)])];
 });
 

@@ -4,7 +4,6 @@ const FacebookStrategy = require('passport-facebook').Strategy;
 const axios = require('axios');
 const User = require('../models/User');
 
-// ========== Helper: dohvat Facebook interesa ==========
 async function fetchFacebookInterests(accessToken) {
   const base = 'https://graph.facebook.com/v19.0/me';
 
@@ -28,7 +27,6 @@ async function fetchFacebookInterests(accessToken) {
   };
 }
 
-// ========== Helper: infer genre iz imena ==========
 function inferGenresFromArtists(artists = []) {
   const genreMap = {
     rock: ['rock', 'metal'],
@@ -53,9 +51,6 @@ function inferGenresFromArtists(artists = []) {
   return [...new Set(detected)];
 }
 
-// ============================================
-// GOOGLE STRATEGY
-// ============================================
 passport.use(
   new GoogleStrategy(
     {
@@ -88,9 +83,6 @@ passport.use(
   )
 );
 
-// ============================================
-// FACEBOOK STRATEGY (indirektne preference)
-// ============================================
 passport.use(
   new FacebookStrategy(
     {
@@ -160,7 +152,6 @@ passport.use(
   )
 );
 
-// ========== Session ==========
 passport.serializeUser((user, done) => {
   done(null, user.id);
 });

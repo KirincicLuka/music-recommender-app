@@ -1,6 +1,5 @@
 const axios = require('axios');
 
-// Dohvati dodatne Deezer podatke
 async function enrichWithDeezer(title, artist) {
   try {
     const response = await axios.get('https://api.deezer.com/search', {
@@ -13,7 +12,6 @@ async function enrichWithDeezer(title, artist) {
     if (response.data.data && response.data.data.length > 0) {
       const track = response.data.data[0];
       
-      // Dohvati detalje o tracku (uključuje BPM i contributors)
       const detailsResponse = await axios.get(`https://api.deezer.com/track/${track.id}`);
       const details = detailsResponse.data;
       
@@ -40,7 +38,6 @@ async function enrichWithDeezer(title, artist) {
   }
 }
 
-// Dohvati artist podatke
 async function getDeezerArtist(artistName) {
   try {
     const response = await axios.get('https://api.deezer.com/search/artist', {

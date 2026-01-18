@@ -2,17 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import API from '../api';
 import SongModal from './SongModal';
 
-//
-// SongCard can be used in two contexts:
-// - Favorites list: pass favoriteId + onDelete -> shows "Remove"
-// - Recommendations / generic list: pass onAdd -> shows "Add to favorites"
-//
 function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove = true }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [currentSong, setCurrentSong] = useState(song);
   
-  // Audio player state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -62,23 +56,18 @@ function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove
 
   const handleCardClick = async () => {
     try {
-      // Pošalji view tracking request (ne čekaj response)
       API.post(`/api/songs/${currentSong._id}/view`).catch(err => {
         console.error('Failed to track view:', err);
       });
-      
-      console.log('👁️ View tracked for:', currentSong.title);
     } catch (err) {
-      // Silent fail - ne blokiraj otvaranje modala
       console.error('View tracking error:', err);
     }
     
-    // Otvori modal
     setShowModal(true);
   };
 
   const togglePlay = (e) => {
-    e.stopPropagation(); // Prevent opening modal
+    e.stopPropagation(); 
     const audio = audioRef.current;
     if (isPlaying) {
       audio.pause();
@@ -89,7 +78,7 @@ function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove
   };
 
   const handleSeek = (e) => {
-    e.stopPropagation(); // Prevent opening modal
+    e.stopPropagation(); 
     const audio = audioRef.current;
     const seekTime = (e.target.value / 100) * duration;
     audio.currentTime = seekTime;
@@ -287,7 +276,7 @@ function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove
         />
       )}
 
-      <style jsx>{`
+      <style>{`
         input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;

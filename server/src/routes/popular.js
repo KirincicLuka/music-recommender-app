@@ -43,7 +43,6 @@ router.get('/24h', async (req, res) => {
     const allZero = changes.every(c => c.delta === 0);
 
     if (allZero) {
-      // 🔁 Fallback: return most popular from latest snapshot
       const fallback = latest
         .sort((a, b) => b.score - a.score)
         .slice(0, 10)
@@ -58,14 +57,12 @@ router.get('/24h', async (req, res) => {
         return res.json(populatedResult);
     }
 
-    // Get top 5 songs by delta (biggest difference)
     const topDelta = changes
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       .slice(0, 5);
     
     const topDeltaIds = new Set(topDelta.map(s => String(s.songId)));
 
-    // Get top 5 songs by current score (excluding those already in topDelta)
     const topScore = changes
       .filter(s => !topDeltaIds.has(String(s.songId)))
       .sort((a, b) => b.currentScore - a.currentScore)
@@ -122,7 +119,6 @@ router.get('/lastweek', async (req, res) => {
     const allZero = changes.every(c => c.delta === 0);
 
     if (allZero) {
-      // 🔁 Fallback: return most popular from latest snapshot
       const fallback = latest
         .sort((a, b) => b.score - a.score)
         .slice(0, 10)
@@ -136,14 +132,12 @@ router.get('/lastweek', async (req, res) => {
         return res.json(populatedResult);
     }
 
-    // Get top 5 songs by delta (biggest difference)
     const topDelta = changes
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
       .slice(0, 5);
     
     const topDeltaIds = new Set(topDelta.map(s => String(s.songId)));
 
-    // Get top 5 songs by current score (excluding those already in topDelta)
     const topScore = changes
       .filter(s => !topDeltaIds.has(String(s.songId)))
       .sort((a, b) => b.currentScore - a.currentScore)

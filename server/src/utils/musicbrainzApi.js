@@ -48,7 +48,7 @@ async function enrichSong(song) {
   const recording = await findRecordingMBID(song.title, song.artist);
   if (!recording) return false;
   if (!song.title || !song.artist) {
-  console.log('⏭️ Skipping invalid song');
+  console.log('Skipping invalid song');
   return false;
 }
   const rating = await getRecordingRating(recording.id);
@@ -71,12 +71,10 @@ async function run() {
 
   for (const song of songs) {
     try {
-      console.log(`🎵 ${song.title} – ${song.artist}`);
       const ok = await enrichSong(song);
-      console.log(ok ? '✅ Rating saved' : '⚠️ No rating found');
       await sleep(1800);
     } catch (err) {
-      console.error('❌ Error:', err.message);
+      console.error('Error:', err.message);
     }
   }
 

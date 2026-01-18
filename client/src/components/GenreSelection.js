@@ -10,7 +10,6 @@ function GenreSelection({ user, onComplete, initialGenres, showSkip = true }) {
     setSelectedGenres(Array.isArray(initialGenres) ? initialGenres : []);
   }, [initialGenres]);
   
-  // Preddefinirani žanrovi - ne ovisi o bazi
   const availableGenres = [
     'Pop', 
     'Rock', 
@@ -56,11 +55,8 @@ function GenreSelection({ user, onComplete, initialGenres, showSkip = true }) {
       await API.post(`/api/users/${user.id}/preferences`, {
         genres: selectedGenres
       });
-
-      console.log('✅ Preferences saved:', selectedGenres);
       onComplete();
     } catch (err) {
-      console.error('Failed to save preferences:', err);
       alert('Failed to save preferences. Try again.');
       setSaving(false);
     }
@@ -90,7 +86,7 @@ function GenreSelection({ user, onComplete, initialGenres, showSkip = true }) {
             <span className="text-7xl">🎵</span>
           </div>
           <h2 className="text-4xl font-bold text-gray-800 mb-3">
-            Welcome, {user.ime || 'korisniče'}!
+            Welcome, {user.ime || 'user'}!
           </h2>
           <p className="text-gray-600 text-lg leading-relaxed">
             Choose music genres you love and we will recommend you best songs
@@ -123,7 +119,7 @@ function GenreSelection({ user, onComplete, initialGenres, showSkip = true }) {
 
         {/* Selected Count */}
         <div className="text-center mb-8 text-gray-600 text-base">
-          Odabrano: <strong className="text-purple-600 text-lg">{selectedGenres.length}</strong> {selectedGenres.length === 1 ? 'žanr' : 'žanrova'}
+          Selected: <strong className="text-purple-600 text-lg">{selectedGenres.length}</strong> {selectedGenres.length === 1 ? 'genre' : 'genres'}
         </div>
 
         {/* Action Buttons */}

@@ -8,7 +8,6 @@ require("dotenv").config({
 });
 
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
   .catch(err => console.error(err));
 
 async function createSnapshot() {
@@ -56,14 +55,14 @@ async function createSnapshot() {
       createdAt: new Date()
     });
 
-    console.log(`✅ Snapshot saved for: ${song.title} – Score: ${score.toFixed(3)}`);
+    console.log(`Snapshot saved for: ${song.title} – Score: ${score.toFixed(3)}`);
   }
 
-  console.log(`🏁 Snapshot created for ${songs.length} songs`);
+  console.log(`Snapshot created for ${songs.length} songs`);
   mongoose.disconnect();
 }
 
 createSnapshot().catch(err => {
-  console.error('❌ Error creating snapshot:', err);
+  console.error('Error creating snapshot:', err);
   mongoose.disconnect();
 });

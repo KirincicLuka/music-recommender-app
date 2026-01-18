@@ -23,21 +23,18 @@ function App() {
           localStorage.setItem('authToken', token);
           window.history.replaceState({}, document.title, '/');
           
-          // Provjeri onboarding status
           const res = await API.get(`/api/users/${payload.id}/onboarding-status`);
           setNeedsOnboarding(!res.data.hasPreferences);
         } catch (err) {
           console.error('Failed to initialize user:', err);
         }
       } else {
-        // Provjeri lokalni token
         const storedToken = localStorage.getItem('authToken');
         if (storedToken) {
           try {
             const payload = JSON.parse(atob(storedToken.split('.')[1]));
             setUser(payload);
             
-            // Provjeri onboarding status
             const res = await API.get(`/api/users/${payload.id}/onboarding-status`);
             setNeedsOnboarding(!res.data.hasPreferences);
           } catch (err) {
@@ -68,15 +65,12 @@ function App() {
     );
   }
 
-  // Normalan flow aplikacije
 return (
   <Router>
 
     <Routes>
-      {/* Login route */}
       <Route path="/login" element={<Login />} />
 
-      {/* Ako nije prijavljen, sve vodi na login */}
       {!user ? (
         <Route path="*" element={<Login />} />
       ) : needsOnboarding ? (

@@ -13,8 +13,8 @@ function Navbar() {
   const linkClass = ({ isActive }) =>
   `px-4 py-2 rounded-lg font-semibold transition-all duration-300
    ${isActive 
-     ? 'bg-white text-indigo-600'        // AKTIVNI TAB (Popular)
-     : 'text-white hover:text-indigo-600 hover:bg-white' // SVI OSTALI
+     ? 'bg-white text-indigo-600'        
+     : 'text-white hover:text-indigo-600 hover:bg-white' 
    }`;
 
 

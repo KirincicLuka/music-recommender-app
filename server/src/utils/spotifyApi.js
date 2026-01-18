@@ -7,10 +7,6 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 const Song = require("../models/Song");
 
-/* ─────────────────────────────────────────────── */
-/* SPOTIFY AUTH */
-/* ─────────────────────────────────────────────── */
-
 async function getSpotifyToken() {
   const res = await axios.post(
     "https://accounts.spotify.com/api/token",
@@ -30,10 +26,6 @@ async function getSpotifyToken() {
   );
   return res.data.access_token;
 }
-
-/* ─────────────────────────────────────────────── */
-/* SPOTIFY SEARCH */
-/* ─────────────────────────────────────────────── */
 
 async function getSpotifyPopularity(token, title, artist) {
   try {
@@ -60,27 +52,18 @@ async function getSpotifyPopularity(token, title, artist) {
   }
 }
 
-/* ─────────────────────────────────────────────── */
-/* JOB */
-/* ─────────────────────────────────────────────── */
-
 async function run() {
-  console.log("🚀 Spotify popularity enrichment started");
-
   await mongoose.connect(process.env.MONGODB_URI);
-  console.log("✅ MongoDB connected");
 
   const token = await getSpotifyToken();
 
-  // Only process songs missing popularity
   const songs = await Song.find({
     popularity: { $exists: false }
   }).limit(200);
 
-  console.log(`🎵 Songs to process: ${songs.length}`);
 
   for (const song of songs) {
-    console.log(`➡️ ${song.title} – ${song.artist}`);
+    console.log(`${song.title} – ${song.artist}`);
 
     const popularity = await getSpotifyPopularity(
       token,
@@ -89,7 +72,7 @@ async function run() {
     );
 
     if (popularity === null) {
-      console.log("⚠️ No Spotify match");
+      console.log("No Spotify match");
       continue;
     }
 
@@ -98,17 +81,16 @@ async function run() {
       { $set: { popularity } }
     );
 
-    console.log(`✅ Spotify popularity = ${popularity}`);
+    console.log(`Spotify popularity = ${popularity}`);
 
-    // Rate-limit safety
     await new Promise((r) => setTimeout(r, 200));
   }
 
-  console.log("🏁 Job finished");
+  console.log("Job finished");
   await mongoose.disconnect();
 }
 
 run().catch((err) => {
-  console.error("❌ Job failed", err);
+  console.error("Job failed", err);
   process.exit(1);
 });

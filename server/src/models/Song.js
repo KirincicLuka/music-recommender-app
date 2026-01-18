@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 
 const SongSchema = new mongoose.Schema(
   {
-    // OSNOVNI PODACI
     deezerId: { type: String, unique: true, required: true },
     title: { type: String, required: true },
     artist: { type: String, required: true },
@@ -17,7 +16,6 @@ const SongSchema = new mongoose.Schema(
     lyrics: String,
     musicVideo: String,
 
-    // POPULARNOST / INTERAKCIJA
     popularity: Number,
     viewCount: {
       type: Number,
@@ -28,7 +26,6 @@ const SongSchema = new mongoose.Schema(
       default: null
     },
 
-    // DEEZER OBOGAĆENI PODACI
     bpm: Number,
     gain: Number,
     explicitLyrics: Boolean,
@@ -40,7 +37,6 @@ const SongSchema = new mongoose.Schema(
       }
     ],
 
-    // ITUNES PODACI
     itunesData: {
       type: [
         {
@@ -60,7 +56,6 @@ const SongSchema = new mongoose.Schema(
       default: []
     },
 
-    // LAST.FM PODACI (RECOMMENDATIONS)
     lastfmData: {
       playcount: Number,
       listeners: Number,
@@ -75,7 +70,6 @@ const SongSchema = new mongoose.Schema(
       ]
     },
 
-    // YOUTUBE PODACI
     youtubeData: {
       videoId: String,
       views: Number,
@@ -90,11 +84,10 @@ const SongSchema = new mongoose.Schema(
       fetchedAt: Date
     },
 
-    // MUSICBRAINZ PODACI
     musicbrainzData: {
       mbid: String,
       rating: {
-        value: Number, // 0–5
+        value: Number, 
         votes: Number
       },
       releaseGroupId: String
@@ -105,7 +98,6 @@ const SongSchema = new mongoose.Schema(
   }
 );
 
-// TEXT SEARCH INDEX
 SongSchema.index({
   title: 'text',
   artist: 'text',

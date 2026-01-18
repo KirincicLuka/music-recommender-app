@@ -1,7 +1,6 @@
 import React from 'react';
 
 function PreferencesDisplay({ user }) {
-  // ✅ Dodana zaštita za undefined user
   if (!user) {
     return (
       <div className="bg-gray-100 p-6 rounded-2xl text-center">
@@ -10,7 +9,6 @@ function PreferencesDisplay({ user }) {
     );
   }
 
-  const explicitGenres = user.preferredGenres || [];
   const indirectGenres = user.indirectPreferences?.detectedGenres || [];
   const detectedArtists = user.indirectPreferences?.detectedArtists || [];
   const source = user.indirectPreferences?.source;
@@ -19,12 +17,11 @@ function PreferencesDisplay({ user }) {
   return (
     <div className="space-y-6">
 
-      {/* INDIREKTNE PREFERENCIJE */}
       {(indirectGenres.length > 0 || detectedArtists.length > 0) && (
         <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-2xl border-2 border-blue-200">
           <h3 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
             <span className="text-2xl">🔍</span>
-            Auto-Detected from {source === 'facebook' ? 'Facebook' : 'Profile'} (Indirect)
+            Auto-Detected from {source === 'facebook' ? 'Facebook' : 'Profile'}
           </h3>
           
           {detectedAt && (
@@ -33,7 +30,6 @@ function PreferencesDisplay({ user }) {
             </p>
           )}
 
-          {/* Detektirani žanrovi */}
           {indirectGenres.length > 0 && (
             <div className="mb-4">
               <h4 className="text-sm font-semibold text-gray-700 mb-2">Genres:</h4>
@@ -50,7 +46,6 @@ function PreferencesDisplay({ user }) {
             </div>
           )}
 
-          {/* Detektirani umjetnici */}
           {detectedArtists.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-2">
@@ -83,28 +78,6 @@ function PreferencesDisplay({ user }) {
         </div>
       )}
 
-      {/* HYBRID - Efektivne preferencije */}
-      {user.effectiveGenres && user.effectiveGenres.length > 0 && (
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-2xl border-2 border-emerald-200">
-          <h3 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-            <span className="text-2xl">🎯</span>
-            Active Preferences (Used for Recommendations)
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {user.effectiveGenres.map((genre) => (
-              <span
-                key={genre}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow-sm"
-              >
-                {genre}
-              </span>
-            ))}
-          </div>
-          <p className="text-xs text-gray-600 mt-3">
-            Combining your selected genres with auto-detected preferences for better recommendations
-          </p>
-        </div>
-      )}
     </div>
   );
 }
