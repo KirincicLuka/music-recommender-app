@@ -85,7 +85,7 @@ router.get('/lastweek', async (req, res) => {
       .distinct('snapshotId');
     const snapshotIds = allSnapshotIds.slice(0, 7);
 
-    if (snapshotIds.length < 2) {
+    if (snapshotIds.length < 7) {
       return res.status(400).json({ error: 'Not enough snapshots' });
     }
 
