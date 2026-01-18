@@ -66,16 +66,27 @@ function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove
     setShowModal(true);
   };
 
-  const togglePlay = (e) => {
-    e.stopPropagation(); 
+  const togglePlay = async (e) => {
+    e.stopPropagation();
+    if (!previewUrl) return;
+
     const audio = audioRef.current;
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      audio.play();
+    if (!audio) return;
+
+    try {
+      if (isPlaying) {
+        audio.pause();
+        setIsPlaying(false);
+      } else {
+        await audio.play(); 
+        setIsPlaying(true);
+      }
+    } catch (err) {
+      console.warn('Preview not playable:', err?.message || err);
+      setIsPlaying(false);
     }
-    setIsPlaying(!isPlaying);
   };
+
 
   const handleSeek = (e) => {
     e.stopPropagation(); 
@@ -106,8 +117,15 @@ function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove
                      currentSong.youtubeData ||
                      currentSong.spotifyData;
 
-  const previewUrl = currentSong.preview || currentSong.itunesData?.[0]?.previewUrl;
-  const progressPercentage = duration ? (currentTime / duration) * 100 : 0;
+  const rawPreviewUrl = currentSong.preview || currentSong.itunesData?.[0]?.previewUrl;
+
+  const hasPreview =
+    typeof rawPreviewUrl === 'string' &&
+    rawPreviewUrl.trim() !== '' &&
+    rawPreviewUrl !== 'null' &&
+    rawPreviewUrl !== 'undefined';
+
+const previewUrl = hasPreview ? rawPreviewUrl : null;  const progressPercentage = duration ? (currentTime / duration) * 100 : 0;
 
   return (
     <>
@@ -170,6 +188,7 @@ function SongCard({ song, favoriteId, onDelete, onAdd, added = false, showRemove
                 {/* Play/Pause Button */}
                 <button 
                   onClick={togglePlay}
+                  disabled={!previewUrl}
                   className="w-8 h-8 flex-shrink-0 bg-white text-gray-900 rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg"
                 >
                   {isPlaying ? (

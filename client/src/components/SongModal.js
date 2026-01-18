@@ -3,9 +3,9 @@ import API from '../api';
 
 function SongModal({ song, onClose, onUpdate }) {
   const [activeTab, setActiveTab] = useState('overview');
-  const [enrichedSong, setEnrichedSong] = useState(song);
+  const [enrichedSong] = useState(song);
   const [recommendations, setRecommendations] = useState([]);
-  const [loadingRecs, setLoadingRecs] = useState(false);
+  const [setLoadingRecs] = useState(false);
   const [recsStatus, setRecsStatus] = useState('idle'); 
 
   const loadRecommendations = async () => {

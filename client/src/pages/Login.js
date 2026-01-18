@@ -90,9 +90,9 @@ function Login() {
         <div className="mt-8 text-center text-sm text-gray-500">
           <p>By continuing, you agree to our</p>
           <div className="flex justify-center gap-4 mt-2">
-            <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
+            <button className="text-blue-600 hover:underline">Terms of Service</button>
             <span>•</span>
-            <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
+            <button className="text-blue-600 hover:underline">Privacy Policy</button>
           </div>
         </div>
 
