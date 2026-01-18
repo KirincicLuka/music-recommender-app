@@ -3,15 +3,10 @@ import API from '../api';
 import SongCard from './SongCard';
 
 function SongList({ userId, songs: songsProp = null, mode = 'auto', onSongSaved }) {
-  // mode:
-  // - 'auto' (default): ako dobijemo songsProp -> renderaj to, inače fetch favorites
-  // - 'favorites': uvijek fetch favorites
-  // - 'list': uvijek renderaj songsProp (npr. preporuke)
 
   const shouldFetchFavorites = useMemo(() => {
     if (mode === 'favorites') return true;
     if (mode === 'list') return false;
-    // auto:
     return !Array.isArray(songsProp);
   }, [mode, songsProp]);
 
@@ -19,7 +14,6 @@ function SongList({ userId, songs: songsProp = null, mode = 'auto', onSongSaved 
   const [loading, setLoading] = useState(shouldFetchFavorites);
   const [addedIds, setAddedIds] = useState(() => new Set());
 
-  // Kad se promijene songsProp (recommendations), samo ih prikaži
   useEffect(() => {
     if (Array.isArray(songsProp)) {
       setSongs(songsProp);
@@ -27,7 +21,6 @@ function SongList({ userId, songs: songsProp = null, mode = 'auto', onSongSaved 
     }
   }, [songsProp]);
 
-  // Fetch FAVORITES samo kad treba
   useEffect(() => {
     if (!shouldFetchFavorites) return;
     if (!userId) return;
@@ -37,7 +30,6 @@ function SongList({ userId, songs: songsProp = null, mode = 'auto', onSongSaved 
       try {
         const res = await API.get(`/api/songs/favorites/${userId}`);
 
-        // res.data je array Favorite dokumenata sa populated 'song' poljem
         const favoriteSongs = res.data.map(fav => ({
           ...fav.song,
           favoriteId: fav._id

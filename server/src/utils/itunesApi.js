@@ -6,7 +6,6 @@ require("dotenv").config({
   path: path.join(__dirname, "..", "..", ".env"),
 });
 
-// ---------- helpers ----------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function norm(s = "") {
@@ -61,13 +60,11 @@ function pickBestResult(results, title, artist) {
     }
   }
 
-  // prag možeš spustiti na 50 ako želiš više pogodaka uz malo više rizika
   if (bestScore < 60) return null;
 
   return best;
 }
 
-// ---------- axios with retry/backoff ----------
 async function itunesSearch(term, country, limit = 10, maxRetries = 6) {
   const url = "https://itunes.apple.com/search";
 
@@ -83,7 +80,6 @@ async function itunesSearch(term, country, limit = 10, maxRetries = 6) {
         },
         timeout: 15000,
         headers: {
-          // pomaže da ne izgleda kao “default bot”
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
           Accept: "application/json",
         },
@@ -94,23 +90,20 @@ async function itunesSearch(term, country, limit = 10, maxRetries = 6) {
       const status = err?.response?.status;
 
       if (status === 429) {
-        // exponential backoff + jitter
         const wait = Math.min(60000, 2000 * Math.pow(2, attempt)) + Math.floor(Math.random() * 500);
-        console.log(`   ⏳ 429 for ${country}, waiting ${wait}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+        console.log(`429 for ${country}, waiting ${wait}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
         await sleep(wait);
         continue;
       }
 
       if (status === 403) {
-        // često dolazi nakon 429; probaj malo pričekati i nastaviti
         const wait = 8000 + Math.floor(Math.random() * 2000);
-        console.log(`   🚫 403 for ${country}, cooling down ${wait}ms`);
+        console.log(`403 for ${country}, cooling down ${wait}ms`);
         await sleep(wait);
-        return []; // tretiraj kao "nema"
+        return []; 
       }
 
-      // druge greške
-      console.log(`   ❌ iTunes error ${status || ""} ${err.message}`);
+      console.log(`iTunes error ${status || ""} ${err.message}`);
       return [];
     }
   }
@@ -118,7 +111,6 @@ async function itunesSearch(term, country, limit = 10, maxRetries = 6) {
   return [];
 }
 
-// ---------- iTunes logic ----------
 async function searchItunesTrack(title, artist, country) {
   const queries = [
     `${title} ${artist}`,
@@ -170,25 +162,22 @@ async function getMultiRegionData(title, artist) {
   return found;
 }
 
-// ---------- main ----------
 async function enrichAllSongsWithItunes() {
   const dbUri = process.env.MONGODB_URI;
   if (!dbUri) throw new Error("MONGODB_URI is missing. Check dotenv path.");
 
   await mongoose.connect(dbUri);
-  console.log("✅ Spojen na MongoDB");
 
   const Song = require("../models/Song");
 
   const songs = await Song.find({
+    deezerId: { $exists: true, $ne: null },
     $or: [
       { itunesData: { $exists: false } },
       { itunesData: null },
       { "itunesData.0": { $exists: false } },
     ],
   });
-
-  console.log(`📊 Pronađeno ${songs.length} pjesama bez iTunes podataka`);
 
   let updated = 0;
   let skipped = 0;
@@ -202,9 +191,8 @@ async function enrichAllSongsWithItunes() {
 
     console.log(`\n[${i + 1}/${songs.length}] ${title} — ${artist}`);
 
-    // skip loših
     if (!title || !artist || title === "undefined" || artist === "undefined") {
-      console.log("   ⏭️  Skip (missing title/artist)");
+      console.log("Skip (missing title/artist)");
       skipped++;
       continue;
     }
@@ -214,35 +202,27 @@ async function enrichAllSongsWithItunes() {
     if (itunesData.length > 0) {
       song.itunesData = itunesData;
       await song.save();
-      console.log(`   ✅ Dodano ${itunesData.length} regija (npr. ${itunesData[0].country}, matchedBy="${itunesData[0].matchedBy}")`);
       updated++;
     } else {
-      console.log("   ⚠️  Nije pronađeno (ili API blokiran)");
+      console.log("Nije pronađeno (ili API blokiran)");
       notFound++;
     }
 
-    // dodatni “cooldown” svaka 20 requestova
     if ((i + 1) % 20 === 0) {
-      console.log("   🧊 Cooldown 15s (anti-429)");
+      console.log("Cooldown 15s (anti-429)");
       await sleep(15000);
     }
   }
 
-  console.log("\n" + "=".repeat(50));
-  console.log(`✅ Ažurirano: ${updated}`);
-  console.log(`⏭️  Preskočeno: ${skipped}`);
-  console.log(`⚠️  Nije nađeno: ${notFound}`);
-  console.log("=".repeat(50));
-
   await mongoose.connection.close();
-  console.log("🔌 Veza s bazom zatvorena");
+  console.log("Veza s bazom zatvorena");
 }
 
 if (require.main === module) {
   enrichAllSongsWithItunes()
     .then(() => process.exit(0))
     .catch((e) => {
-      console.error("❌ Greška:", e);
+      console.error("Greška:", e);
       process.exit(1);
     });
 }

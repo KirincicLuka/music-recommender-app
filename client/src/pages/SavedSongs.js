@@ -16,10 +16,6 @@ function SavedSongs({ user }) {
               </h2>
               <p className="text-gray-600 text-lg">Your personal music collection</p>
             </div>
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-3 rounded-2xl shadow-lg">
-              <div className="text-sm font-semibold">Total Songs</div>
-              <div className="text-3xl font-bold">∞</div>
-            </div>
           </div>
         </div>
 

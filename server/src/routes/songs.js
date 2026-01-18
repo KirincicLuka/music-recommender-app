@@ -137,7 +137,6 @@ router.post('/enrich/:songId', async (req, res) => {
       return res.status(404).json({ error: 'Song not found' });
     }
 
-    // Dohvati podatke paralelno
     const [deezerData, itunesData, lastfmInfo, similarTracks] = await Promise.all([
       enrichWithDeezer(song.title, song.artist),
       getMultiRegionData(song.title, song.artist),
@@ -147,27 +146,23 @@ router.post('/enrich/:songId', async (req, res) => {
 
     let updated = false;
 
-    // Ažuriraj Deezer podatke
     if (deezerData) {
       song.bpm = deezerData.bpm;
       song.gain = deezerData.gain;
       song.explicitLyrics = deezerData.explicitLyrics;
       song.contributors = deezerData.contributors;
       
-      // Ažuriraj preview i cover ako je bolji quality
       if (deezerData.preview) song.preview = deezerData.preview;
       if (deezerData.cover) song.cover = deezerData.cover;
       
       updated = true;
     }
 
-    // Ažuriraj iTunes podatke
     if (itunesData && itunesData.length > 0) {
       song.itunesData = itunesData;
       updated = true;
     }
 
-    // Ažuriraj Last.fm podatke
     if (lastfmInfo || similarTracks.length > 0) {
       song.lastfmData = {
         playcount: lastfmInfo?.playcount || 0,
@@ -203,7 +198,6 @@ router.post('/enrich/:songId', async (req, res) => {
   }
 });
 
-// Batch obogaćivanje
 router.post('/enrich-all', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
@@ -262,7 +256,6 @@ router.post('/enrich-all', async (req, res) => {
           failed++;
         }
 
-        // Rate limiting
         await new Promise(resolve => setTimeout(resolve, 200));
 
       } catch (err) {
@@ -283,7 +276,6 @@ router.post('/enrich-all', async (req, res) => {
   }
 });
 
-// Dohvati preporuke bazirane na Last.fm
 router.get('/recommendations/:songId', async (req, res) => {
   try {
     const song = await Song.findById(req.params.songId);
@@ -292,9 +284,6 @@ router.get('/recommendations/:songId', async (req, res) => {
       return res.status(404).json({ error: 'Song not found' });
     }
 
-    console.log(`🔍 Getting recommendations for: ${song.title} by ${song.artist}`);
-
-    // Dohvati sa Last.fm
     const similarTracks = await getSimilarTracks(song.title, song.artist, 10);
     
     if (similarTracks.length === 0) {
@@ -307,24 +296,18 @@ router.get('/recommendations/:songId', async (req, res) => {
       });
     }
 
-    console.log(`✅ Found ${similarTracks.length} similar tracks from Last.fm`);
-
-    // Probaj pronaći u bazi (opciono)
     const trackTitles = similarTracks.map(t => t.name);
     const songsInDb = await Song.find({
       title: { $in: trackTitles }
     }).limit(10);
 
-    console.log(`📊 Found ${songsInDb.length} matching songs in database`);
-
-    // Ako nema u bazi, vrati Last.fm sugestije kao plain objekte
     if (songsInDb.length === 0) {
       const recommendations = similarTracks.map(track => ({
         title: track.name,
         artist: track.artist,
         cover: 'https://via.placeholder.com/150?text=' + encodeURIComponent(track.name.substring(0, 1)),
         match: track.match,
-        _id: null // Nema ID jer nije u bazi
+        _id: null
       }));
 
       return res.json({
@@ -343,7 +326,7 @@ router.get('/recommendations/:songId', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('❌ Recommendations error:', err);
+    console.error('Recommendations error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -394,14 +377,11 @@ router.post('/:songId/view', async (req, res) => {
       return res.status(404).json({ error: 'Song not found' });
     }
 
-    // Povećaj counter i ažuriraj vrijeme
     song.viewCount = (song.viewCount || 0) + 1;
     song.lastViewedAt = new Date();
     
     await song.save();
-    
-    console.log(`👁️ View tracked: ${song.title} (${song.viewCount} views)`);
-    
+        
     res.json({
       success: true,
       viewCount: song.viewCount,
@@ -409,7 +389,7 @@ router.post('/:songId/view', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('❌ View tracking error:', err);
+    console.error('View tracking error:', err);
     res.status(500).json({ error: err.message });
   }
 });

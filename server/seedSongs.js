@@ -58,10 +58,8 @@ async function seedSongs() {
       }
     }
 
-    console.log(`\n🎉 Seeding complete! Added ${totalAdded} songs to database.`);
     
     const total = await Song.countDocuments();
-    console.log(`📊 Total songs in database: ${total}`);
 
   } catch (err) {
     console.error('Seeding failed:', err);

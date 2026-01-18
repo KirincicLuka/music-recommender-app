@@ -4,7 +4,7 @@ import SongCard from '../components/SongCard';
 import Navbar from '../components/Navbar';
 
 function Popular({ user }) {
-  const [range, setRange] = useState('24h'); // '24h' | 'lastweek'
+  const [range, setRange] = useState('24h'); 
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [addedIds, setAddedIds] = useState(() => new Set());
@@ -17,9 +17,6 @@ function Popular({ user }) {
       try {
         const res = await API.get(`/api/popular/${range}`);
 
-        // Backend vraća objekte s songId populated
-        // - normal: { songId, previousScore, currentScore, delta }
-        // - fallback: { songId, currentScore }
         setItems(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error('Failed to load popular:', err);
@@ -42,7 +39,7 @@ function Popular({ user }) {
       });
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.error || 'Greška pri dodavanju u favorite');
+      alert(err?.response?.data?.error || 'Error while adding to favorites');
     }
   };
 
@@ -97,11 +94,10 @@ function Popular({ user }) {
           <div className="bg-gray-900 rounded-2xl p-8 shadow-2xl">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {items.map((row, idx) => {
-                const song = row.songId; // populated Song
+                const song = row.songId; 
                 if (!song) return null;
 
                 const delta = typeof row.delta === 'number' ? row.delta : null;
-                const currentScore = typeof row.currentScore === 'number' ? row.currentScore : null;
 
                 return (
                   <div key={`${song._id}-${idx}`} className="space-y-2">

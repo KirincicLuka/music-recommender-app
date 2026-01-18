@@ -13,21 +13,12 @@ if (!LASTFM_API_KEY) {
 }
 
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected'))
   .catch(err => {
-    console.error('❌ MongoDB error', err);
+    console.error('MongoDB error', err);
     process.exit(1);
   });
 
-/* ─────────────────────────────────────────────── */
-/* EXISTING MODEL */
-/* ─────────────────────────────────────────────── */
-
-const Song = require('../models/Song'); // ← YOUR existing schema
-
-/* ─────────────────────────────────────────────── */
-/* LAST.FM CLIENT */
-/* ─────────────────────────────────────────────── */
+const Song = require('../models/Song'); 
 
 const lastfmClient = axios.create({
   baseURL: 'https://ws.audioscrobbler.com/2.0/',
@@ -89,17 +80,12 @@ async function getSimilarTracks(title, artist, limit = 5) {
   }
 }
 
-/* ─────────────────────────────────────────────── */
-/* ENRICHMENT */
-/* ─────────────────────────────────────────────── */
-
 async function enrichSong(song) {
   const info = await getLastfmTrackInfo(song.title, song.artist);
   if (!info) return false;
 
   const similarTracks = await getSimilarTracks(song.title, song.artist);
 
-  // Take first tag as genre (or null if no tags)
   const genre = info.tags.length > 0 ? info.tags[0] : null;
 
   song.lastfmData = {
@@ -110,7 +96,6 @@ async function enrichSong(song) {
     similarTracks
   };
 
-  // Update genre field
   if (genre) song.genre = genre;
 
   await song.save();
@@ -119,39 +104,35 @@ async function enrichSong(song) {
 
 
 async function enrichAllSongs({ onlyMissing = true, limit = 500 } = {}) {
-  console.log('🔍 Fetching songs from database...');
-
   const query = onlyMissing
     ? { 'lastfmData.playcount': { $exists: false } }
     : {};
 
   const count = await Song.countDocuments(query);
-  console.log(`📊 Songs matching query: ${count}`);
 
   const songs = await Song.find(query).limit(limit);
 
   if (songs.length === 0) {
-    console.log('⚠️ No songs to process. Exiting.');
+    console.log('No songs to process. Exiting.');
     return;
   }
 
-  console.log(`🎵 Enriching ${songs.length} songs`);
 
   for (const song of songs) {
     try {
-      console.log(`➡️ Processing: ${song.title} – ${song.artist}`);
+      console.log(`Processing: ${song.title} – ${song.artist}`);
 
       const ok = await enrichSong(song);
 
       console.log(
         ok
-          ? `✅ Saved Last.fm data`
-          : `⚠️ No Last.fm data found`
+          ? `Saved Last.fm data`
+          : `No Last.fm data found`
       );
 
       await new Promise(r => setTimeout(r, 300));
     } catch (err) {
-      console.warn(`❌ Error for ${song.title}:`, err.message);
+      console.warn(`Error for ${song.title}:`, err.message);
     }
   }
 }
@@ -173,7 +154,7 @@ module.exports = {
 
 if (require.main === module) {
   runEnrichment().catch(err => {
-    console.error('❌ Enrichment job failed', err);
+    console.error('Enrichment job failed', err);
     mongoose.disconnect();
     process.exit(1);
   });

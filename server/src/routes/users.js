@@ -6,9 +6,6 @@ const { getSimilarTracks } = require('../utils/lastfmApi');
 
 const router = express.Router();
 
-// ============================================
-// GET USER PROFILE WITH PREFERENCES
-// ============================================
 router.get('/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -23,9 +20,6 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-// ============================================
-// UPDATE USER PREFERENCES (ONBOARDING)
-// ============================================
 router.post('/:userId/preferences', async (req, res) => {
   const { genres, moods } = req.body;
 
@@ -44,8 +38,6 @@ router.post('/:userId/preferences', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log(`✅ User ${user.email} completed onboarding with genres:`, genres);
-
     res.json({
       message: 'Preferences saved successfully',
       user
@@ -55,9 +47,6 @@ router.post('/:userId/preferences', async (req, res) => {
   }
 });
 
-// ============================================
-// UPDATE PREFERENCES (PARTIAL UPDATE)
-// ============================================
 router.patch('/:userId/preferences', async (req, res) => {
   const { genres, moods } = req.body;
 
@@ -78,9 +67,6 @@ router.patch('/:userId/preferences', async (req, res) => {
   }
 });
 
-// ============================================
-// GET PERSONALIZED RECOMMENDATIONS (33/33/33)
-// ============================================
 router.get('/:userId/recommendations', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -89,9 +75,6 @@ router.get('/:userId/recommendations', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log(`🎵 Generating recommendations for user: ${user.email}`);
-
-    // KORAK 1: Dohvati SVE favorite korisnika
     const favorites = await Favorite.find({ user: user._id }).populate('song');
 
     const favoriteSongIds = favorites
@@ -100,13 +83,10 @@ router.get('/:userId/recommendations', async (req, res) => {
 
     const favoriteIdSet = new Set(favoriteSongIds.map(id => id.toString()));
 
-    console.log(`❤️ User has ${favoriteSongIds.length} favorites`);
-
     const allRecommendations = [];
 
-    // ====== 33/33/33 weighting config ======
     const TOTAL_LIMIT = 30;
-    const PER_BUCKET = Math.floor(TOTAL_LIMIT / 3); // 10
+    const PER_BUCKET = Math.floor(TOTAL_LIMIT / 3); 
 
     const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -114,7 +94,6 @@ router.get('/:userId/recommendations', async (req, res) => {
     const cleaned = (artists || []).map(a => String(a || '').trim()).filter(Boolean);
     if (cleaned.length === 0) return [];
 
-    // artist match (contains), case-insensitive
     const artistRegexes = cleaned.map(a => new RegExp(escapeRegex(a), 'i'));
 
     return Song.find({ artist: { $in: artistRegexes } })
@@ -122,7 +101,6 @@ router.get('/:userId/recommendations', async (req, res) => {
       .limit(limit);
   };
 
-    // Helper: fetch songs by genres (tries Song.genre first, then lastfmData.tags)
     const fetchSongsByGenres = async (genres, limit = 60) => {
       const cleaned = (genres || []).map(g => String(g || '').trim()).filter(Boolean);
       if (cleaned.length === 0) return [];
@@ -142,19 +120,15 @@ router.get('/:userId/recommendations', async (req, res) => {
       return songs;
     };
 
-    // KORAK 2A: EXPLICIT (preferredGenres)
     const explicitGenres = user.preferredGenres || [];
     let explicitCandidates = [];
     if (explicitGenres.length > 0) {
-      console.log(`🎸 Explicit genres: ${explicitGenres.join(', ')}`);
       const explicitSongs = await fetchSongsByGenres(explicitGenres, 80);
       explicitCandidates = explicitSongs
         .filter(s => !favoriteIdSet.has(s._id.toString()))
         .map(s => ({ ...s.toObject(), recommendationType: 'explicit' }));
     }
 
-    // KORAK 2B: INDIRECT (detectedGenres)
-    // KORAK 2B: INDIRECT (detectedGenres + detectedArtists)
     const indirectGenres = user.indirectPreferences?.detectedGenres || [];
     const indirectArtists = user.indirectPreferences?.detectedArtists || [];
 
@@ -168,7 +142,6 @@ router.get('/:userId/recommendations', async (req, res) => {
       ? await fetchSongsByGenres(indirectGenres, 80)
       : [];
 
-    // PRIORITET: prvo artist-match, pa genre-match
     const mergedIndirect = [...indirectByArtists, ...indirectByGenres];
 
     const seenIndirect = new Set();
@@ -187,16 +160,12 @@ router.get('/:userId/recommendations', async (req, res) => {
       }));
 
 
-    // KORAK 3: SIMILAR TO SAVED SONGS (Last.fm)
     let similarCandidates = [];
     if (favorites.length > 0) {
-      console.log(`🔄 Finding similar songs based on favorites...`);
-
       const favoriteBasedRecs = [];
 
       for (const fav of favorites.slice(0, 5)) {
         if (!fav.song) continue;
-
         try {
           const similarTracks = await getSimilarTracks(
             fav.song.title,
@@ -225,12 +194,9 @@ router.get('/:userId/recommendations', async (req, res) => {
           console.error(`Error for ${fav.song.title}:`, err.message);
         }
       }
-
-      console.log(`✅ Found ${favoriteBasedRecs.length} similar-to-saved recommendations`);
       similarCandidates = favoriteBasedRecs;
     }
 
-    // ====== Combine with equal weights (33/33/33) ======
     const takeFromBucket = (bucket, n, out, seenIds) => {
       let added = 0;
       for (const item of bucket) {
@@ -253,7 +219,6 @@ router.get('/:userId/recommendations', async (req, res) => {
     const pickedIndirect = takeFromBucket(indirectCandidates, PER_BUCKET, final, seen);
     const pickedSimilar = takeFromBucket(similarCandidates, PER_BUCKET, final, seen);
 
-    // Fill remaining slots from leftovers (any bucket), still excluding favorites + duplicates
     const leftovers = [
       ...explicitCandidates.slice(pickedExplicit),
       ...indirectCandidates.slice(pickedIndirect),
@@ -264,7 +229,6 @@ router.get('/:userId/recommendations', async (req, res) => {
 
     allRecommendations.push(...final);
 
-    // Final safety: dedup
     const uniqueRecommendations = [];
     const seenIds = new Set();
 
@@ -294,14 +258,11 @@ router.get('/:userId/recommendations', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('❌ Recommendations error:', err);
+    console.error('Recommendations error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ============================================
-// CHECK ONBOARDING STATUS
-// ============================================
 router.get('/:userId/onboarding-status', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);

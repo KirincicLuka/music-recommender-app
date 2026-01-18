@@ -3,38 +3,12 @@ import API from '../api';
 
 function SongModal({ song, onClose, onUpdate }) {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isEnriching, setIsEnriching] = useState(false);
   const [enrichedSong, setEnrichedSong] = useState(song);
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [recsStatus, setRecsStatus] = useState('idle'); 
 
-
-  const handleEnrich = async () => {
-    setIsEnriching(true);
-    try {
-      const res = await API.post(`/api/songs/enrich/${enrichedSong._id}`);
-      setEnrichedSong(res.data.song);
-      
-      const enrichedWith = [];
-      if (res.data.enrichedWith.deezer) enrichedWith.push('✓ Deezer');
-      if (res.data.enrichedWith.itunes) enrichedWith.push('✓ iTunes');
-      if (res.data.enrichedWith.lastfm) enrichedWith.push('✓ Last.fm');
-      if (res.data.enrichedWith.youtube) enrichedWith.push('✓ YouTube');
-      if (res.data.enrichedWith.spotify) enrichedWith.push('✓ Spotify');
-      
-      alert(`✅ Song enriched!\n\n${enrichedWith.join('\n') || 'No new data found'}`);
-      if (onUpdate) onUpdate(res.data.song);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to enrich song. Try again later.');
-    } finally {
-      setIsEnriching(false);
-    }
-  };
-
   const loadRecommendations = async () => {
-    // ako su vec ucitane, samo prebaci na tab
     if (recommendations.length > 0) {
       setActiveTab('recommendations');
       return;
@@ -160,47 +134,6 @@ function SongModal({ song, onClose, onUpdate }) {
           </div>
         </div>
 
-        {/* Action Buttons
-        <div className="flex gap-2 p-4 border-b border-gray-200 bg-gray-50"> */}
-          {/* <button 
-            onClick={handleEnrich} 
-            disabled={isEnriching}
-            className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed"
-          >
-            {isEnriching ? '⏳ Loading...' : isEnriched ? '🔄 Re-enrich' : '✨ Enrich Data'}
-          </button> */}
-          
-          {/* <button 
-            onClick={loadRecommendations}
-            disabled={loadingRecs}
-            className="flex-1 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-cyan-300 text-white rounded-lg font-medium transition-all disabled:cursor-not-allowed"
-          >
-            {loadingRecs ? '⏳ Loading...' : '🎯 Similar Songs'}
-          </button>
-
-          {enrichedSong.spotifyData?.externalUrl && (
-            <a 
-              href={enrichedSong.spotifyData.externalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all"
-            >
-              🎵 Spotify
-            </a>
-          )}
-
-          {enrichedSong.youtubeData?.videoId && (
-            <a 
-              href={`https://www.youtube.com/watch?v=${enrichedSong.youtubeData.videoId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all"
-            >
-              ▶️ YouTube
-            </a>
-          )}
-        </div> */}
-
         {/* Tabs */}
         <div className="flex gap-1 px-4 pt-4 border-b border-gray-200 overflow-x-auto">
           <button
@@ -315,30 +248,6 @@ function SongModal({ song, onClose, onUpdate }) {
                     <div className="text-xs text-green-600 uppercase tracking-wide">Listeners</div>
                   </div>
                 )}
-                {enrichedSong.spotifyData?.popularity && (
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-700">
-                      {enrichedSong.spotifyData.popularity}%
-                    </div>
-                    <div className="text-xs text-purple-600 uppercase tracking-wide">Spotify Popularity</div>
-                  </div>
-                )}
-                {enrichedSong.youtubeData?.viewCount && (
-                  <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-red-700">
-                      {formatNumber(enrichedSong.youtubeData.viewCount)}
-                    </div>
-                    <div className="text-xs text-red-600 uppercase tracking-wide">YouTube Views</div>
-                  </div>
-                )}
-                {enrichedSong.youtubeData?.likeCount && (
-                  <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-pink-700">
-                      {formatNumber(enrichedSong.youtubeData.likeCount)}
-                    </div>
-                    <div className="text-xs text-pink-600 uppercase tracking-wide">YouTube Likes</div>
-                  </div>
-                )}
               </div>
 
               {/* Tags */}
@@ -375,19 +284,6 @@ function SongModal({ song, onClose, onUpdate }) {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {!isEnriched && (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🎵</div>
-                  <p className="text-gray-500 mb-4">No additional data available yet.</p>
-                  <button 
-                    onClick={handleEnrich}
-                    className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
-                  >
-                    ✨ Enrich Now
-                  </button>
                 </div>
               )}
             </div>

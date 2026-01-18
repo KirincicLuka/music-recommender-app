@@ -6,7 +6,6 @@ import Navbar from '../components/Navbar';
 import GenreSelection from '../components/GenreSelection';
 import PreferencesDisplay from '../components/PreferencesDisplay';
 
-// Helper: animacija brojanja do targeta
 function useCountUp(target, durationMs = 900) {
   const [value, setValue] = useState(0);
 
@@ -45,7 +44,6 @@ function StatCard({ icon, label, value, loading }) {
         <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl shadow">
           {icon}
         </div>
-
         <div className="flex-1">
           <div className="text-sm text-gray-500">{label}</div>
           <div className="text-3xl font-extrabold tracking-tight text-gray-900">
@@ -58,25 +56,20 @@ function StatCard({ icon, label, value, loading }) {
 }
 
 function Profile({ user }) {
-  // Stats state
   const [stats, setStats] = useState({ totalSongs: 0, totalUsers: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // User preferences state
   const [userPreferences, setUserPreferences] = useState(null);
   const [preferencesLoading, setPreferencesLoading] = useState(true);
 
-  // Recommendations state
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationsStats, setRecommendationsStats] = useState(null);
   const [loadingRecommendations, setLoadingRecommendations] = useState(true);
 
-  // User favorites count
   const [userFavoritesCount, setUserFavoritesCount] = useState(0);
 
   const [showGenreModal, setShowGenreModal] = useState(false);
 
-  // Fetch global stats
   useEffect(() => {
     const loadStats = async () => {
       try {
@@ -92,7 +85,6 @@ function Profile({ user }) {
     loadStats();
   }, []);
 
-  // Fetch user preferences
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -110,7 +102,6 @@ function Profile({ user }) {
     }
   }, [user]);
 
-  // Fetch user favorites count
   useEffect(() => {
     const fetchUserFavorites = async () => {
       try {
@@ -126,14 +117,12 @@ function Profile({ user }) {
     }
   }, [user]);
 
-  // Fetch recommendations
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
         const res = await API.get(`/api/users/${user.id}/recommendations`);
         setRecommendations(res.data.recommendations || []);
         setRecommendationsStats(res.data.stats);
-        console.log('📊 Recommendations stats:', res.data.stats);
       } catch (err) {
         console.error('Failed to fetch recommendations:', err);
       } finally {
@@ -147,7 +136,6 @@ function Profile({ user }) {
   }, [user]);
 
   const handleSongSaved = async () => {
-    // Refresh favorites count
     try {
       const res = await API.get(`/api/songs/favorites/${user.id}`);
       setUserFavoritesCount(res.data.length);
@@ -155,7 +143,6 @@ function Profile({ user }) {
       console.error('Failed to refresh favorites:', err);
     }
 
-    // Refresh recommendations
     setLoadingRecommendations(true);
       try {
         const res = await API.get(`/api/users/${user.id}/recommendations`);
@@ -171,7 +158,6 @@ function Profile({ user }) {
   const handleGenresUpdated = async () => {
   setShowGenreModal(false);
 
-  // refresh preferences
   setPreferencesLoading(true);
   try {
     const res = await API.get(`/api/users/${user.id}`);
@@ -182,7 +168,6 @@ function Profile({ user }) {
     setPreferencesLoading(false);
   }
 
-  // refresh recommendations
   setLoadingRecommendations(true);
     try {
       const res = await API.get(`/api/users/${user.id}/recommendations`);
@@ -195,13 +180,11 @@ function Profile({ user }) {
     }
   };
 
-
   return (
     <>
     <Navbar />
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
       <div className="container mx-auto px-4 py-8">
-        
         {/* Header Welcome Section */}
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-3xl p-8 mb-8 text-white shadow-xl">
           <div className="flex items-center gap-4 mb-4">
@@ -254,7 +237,7 @@ function Profile({ user }) {
             onSongSaved={handleSongSaved} 
           />
         </div>
-        {/* ==================== OVDJE POČINJE RECOMMENDATIONS SEKCIJA ==================== */}
+        {/* ====================OVDJE POČINJE RECOMMENDATIONS SEKCIJA==================== */}
         <div>
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
@@ -310,12 +293,13 @@ function Profile({ user }) {
           )}
         </div>
         </div>
-        {/* ==================== OVDJE ZAVRŠAVA RECOMMENDATIONS SEKCIJA ==================== */}
+        {/* ====================OVDJE ZAVRŠAVA RECOMMENDATIONS SEKCIJA==================== */}
+
         <div className="mb-8">
           <PreferencesDisplay user={userPreferences} />
-        
         </div>
-        {/* User Preferred Genres Section (always visible) */}
+
+        {/* User Preferred Genres Section */}
         <div className="mb-8 bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border-2 border-purple-200 shadow-sm">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -347,7 +331,7 @@ function Profile({ user }) {
               </div>
             ) : (
               <p className="text-gray-600">
-                You haven’t selected any genres yet. Click <strong>Choose genres</strong> to personalize recommendations.
+                You haven’t selected any genres yet. Choose genres to personalize recommendations.
               </p>
             )}
           </div>
