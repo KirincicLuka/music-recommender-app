@@ -4,6 +4,7 @@ import SongList from '../components/SongList';
 import API from '../api';
 import Navbar from '../components/Navbar';
 import GenreSelection from '../components/GenreSelection';
+import PreferencesDisplay from '../components/PreferencesDisplay';
 
 // Helper: animacija brojanja do targeta
 function useCountUp(target, durationMs = 900) {
@@ -271,9 +272,9 @@ function Profile({ user }) {
                     onClick={() => {
                       alert(
                         `📊 Breakdown recommendation:\n\n` +
-                        `🎸 Genres (${userPreferences?.preferredGenres?.join(', ') || 'N/A'}): ${recommendationsStats.fromGenres}\n` +
-                        `🔄 Similar to favorites: ${recommendationsStats.fromFavorites}\n` +
-                        `👥 From other users with similar taste in music: ${recommendationsStats.fromCollaborative}\n\n` +
+                        `🎸 Explicit (${userPreferences?.preferredGenres?.join(', ') || 'N/A'}): ${recommendationsStats.fromExplicit}\n` +
+                        `🕵️ Indirect (${userPreferences?.indirectPreferences?.detectedGenres?.join(', ') || 'N/A'}): ${recommendationsStats.fromIndirect}\n` +
+                        `🔄 Similar to saved songs: ${recommendationsStats.fromSavedSimilar}\n\n` +
                         `📈 Total: ${recommendationsStats.total} recommendations`
                       );
                     }}
@@ -310,6 +311,10 @@ function Profile({ user }) {
         </div>
         </div>
         {/* ==================== OVDJE ZAVRŠAVA RECOMMENDATIONS SEKCIJA ==================== */}
+        <div className="mb-8">
+          <PreferencesDisplay user={userPreferences} />
+        
+        </div>
         {/* User Preferred Genres Section (always visible) */}
         <div className="mb-8 bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-2xl border-2 border-purple-200 shadow-sm">
           <div className="flex items-center justify-between gap-4 flex-wrap">
