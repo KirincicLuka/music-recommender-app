@@ -28,10 +28,9 @@ app.use(session({
   saveUninitialized: true,
   cookie: { secure: false } 
 }));
-
+require('./config/passport');
 app.use(passport.initialize());
 app.use(passport.session());
-require('./config/passport')(passport);
 
 app.use('/auth', authRoutes);
 app.use('/api/songs', songsRoutes); 

@@ -12,11 +12,11 @@ const router = express.Router();
 router.get('/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -28,24 +28,24 @@ router.get('/:userId', async (req, res) => {
 // ============================================
 router.post('/:userId/preferences', async (req, res) => {
   const { genres, moods } = req.body;
-  
+
   try {
     const user = await User.findByIdAndUpdate(
       req.params.userId,
-      { 
+      {
         preferredGenres: genres || [],
         preferredMoods: moods || [],
-        onboardingCompleted: true 
+        onboardingCompleted: true
       },
       { new: true, runValidators: true }
     );
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     console.log(`✅ User ${user.email} completed onboarding with genres:`, genres);
-    
+
     res.json({
       message: 'Preferences saved successfully',
       user
@@ -60,22 +60,18 @@ router.post('/:userId/preferences', async (req, res) => {
 // ============================================
 router.patch('/:userId/preferences', async (req, res) => {
   const { genres, moods } = req.body;
-  
+
   try {
     const updateData = {};
     if (genres) updateData.preferredGenres = genres;
     if (moods) updateData.preferredMoods = moods;
-    
-    const user = await User.findByIdAndUpdate(
-      req.params.userId,
-      updateData,
-      { new: true }
-    );
-    
+
+    const user = await User.findByIdAndUpdate(req.params.userId, updateData, { new: true });
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -83,7 +79,7 @@ router.patch('/:userId/preferences', async (req, res) => {
 });
 
 // ============================================
-// GET PERSONALIZED RECOMMENDATIONS
+// GET PERSONALIZED RECOMMENDATIONS (33/33/33)
 // ============================================
 router.get('/:userId/recommendations', async (req, res) => {
   try {
@@ -102,58 +98,97 @@ router.get('/:userId/recommendations', async (req, res) => {
       .filter(f => f.song)
       .map(f => f.song._id);
 
-    // ✅ Robustno: Set stringova (brže i sigurnije)
     const favoriteIdSet = new Set(favoriteSongIds.map(id => id.toString()));
 
     console.log(`❤️ User has ${favoriteSongIds.length} favorites`);
 
     const allRecommendations = [];
 
-    // Helper: escape regex
+    // ====== 33/33/33 weighting config ======
+    const TOTAL_LIMIT = 30;
+    const PER_BUCKET = Math.floor(TOTAL_LIMIT / 3); // 10
+
     const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    // KORAK 2: GENRE-BASED RECOMMENDATIONS
-    if (user.preferredGenres && user.preferredGenres.length > 0) {
-      console.log(`🎸 Searching for songs in genres: ${user.preferredGenres.join(', ')}`);
+    const fetchSongsByArtists = async (artists, limit = 80) => {
+    const cleaned = (artists || []).map(a => String(a || '').trim()).filter(Boolean);
+    if (cleaned.length === 0) return [];
 
-      // ✅ "contains" + case-insensitive match
-      const genreRegexes = user.preferredGenres
-        .filter(Boolean)
-        .map(g => new RegExp(escapeRegex(g), 'i'));
+    // artist match (contains), case-insensitive
+    const artistRegexes = cleaned.map(a => new RegExp(escapeRegex(a), 'i'));
 
-      let genreSongs = await Song.find({
-        genre: { $in: genreRegexes }
-        })
+    return Song.find({ artist: { $in: artistRegexes } })
+      .sort({ rank: -1, popularity: -1 })
+      .limit(limit);
+  };
+
+    // Helper: fetch songs by genres (tries Song.genre first, then lastfmData.tags)
+    const fetchSongsByGenres = async (genres, limit = 60) => {
+      const cleaned = (genres || []).map(g => String(g || '').trim()).filter(Boolean);
+      if (cleaned.length === 0) return [];
+
+      const genreRegexes = cleaned.map(g => new RegExp(escapeRegex(g), 'i'));
+
+      let songs = await Song.find({ genre: { $in: genreRegexes } })
         .sort({ rank: -1, popularity: -1 })
-        .limit(50);
+        .limit(limit);
 
-        // 2) fallback: ako nema rezultata, koristi lastfmData.tags
-        if (genreSongs.length === 0) {
-        genreSongs = await Song.find({
-            'lastfmData.tags': { $in: genreRegexes }
-        })
-        .sort({ rank: -1, popularity: -1 })
-        .limit(50);
+      if (songs.length === 0) {
+        songs = await Song.find({ 'lastfmData.tags': { $in: genreRegexes } })
+          .sort({ rank: -1, popularity: -1 })
+          .limit(limit);
       }
 
-      console.log(`📊 Found ${genreSongs.length} songs in preferred genres`);
+      return songs;
+    };
 
-      // ✅ 100% filter: nikad ne vrati favorite
-      const filteredGenreSongs = genreSongs.filter(song =>
-        !favoriteIdSet.has(song._id.toString())
-      );
-
-      console.log(`✅ After filtering: ${filteredGenreSongs.length} genre-based recommendations`);
-
-      allRecommendations.push(
-        ...filteredGenreSongs.map(song => ({
-          ...song.toObject(),
-          recommendationType: 'genre'
-        }))
-      );
+    // KORAK 2A: EXPLICIT (preferredGenres)
+    const explicitGenres = user.preferredGenres || [];
+    let explicitCandidates = [];
+    if (explicitGenres.length > 0) {
+      console.log(`🎸 Explicit genres: ${explicitGenres.join(', ')}`);
+      const explicitSongs = await fetchSongsByGenres(explicitGenres, 80);
+      explicitCandidates = explicitSongs
+        .filter(s => !favoriteIdSet.has(s._id.toString()))
+        .map(s => ({ ...s.toObject(), recommendationType: 'explicit' }));
     }
 
-    // KORAK 3: FAVORITES-BASED RECOMMENDATIONS (Last.fm)
+    // KORAK 2B: INDIRECT (detectedGenres)
+    // KORAK 2B: INDIRECT (detectedGenres + detectedArtists)
+    const indirectGenres = user.indirectPreferences?.detectedGenres || [];
+    const indirectArtists = user.indirectPreferences?.detectedArtists || [];
+
+    let indirectCandidates = [];
+
+    const indirectByArtists = indirectArtists.length
+      ? await fetchSongsByArtists(indirectArtists, 80)
+      : [];
+
+    const indirectByGenres = indirectGenres.length
+      ? await fetchSongsByGenres(indirectGenres, 80)
+      : [];
+
+    // PRIORITET: prvo artist-match, pa genre-match
+    const mergedIndirect = [...indirectByArtists, ...indirectByGenres];
+
+    const seenIndirect = new Set();
+
+    indirectCandidates = mergedIndirect
+      .filter(s => s && !favoriteIdSet.has(String(s._id)))
+      .filter(s => {
+        const id = String(s._id);
+        if (seenIndirect.has(id)) return false;
+        seenIndirect.add(id);
+        return true;
+      })
+      .map(s => ({
+        ...s.toObject(),
+        recommendationType: 'indirect'
+      }));
+
+
+    // KORAK 3: SIMILAR TO SAVED SONGS (Last.fm)
+    let similarCandidates = [];
     if (favorites.length > 0) {
       console.log(`🔄 Finding similar songs based on favorites...`);
 
@@ -166,7 +201,7 @@ router.get('/:userId/recommendations', async (req, res) => {
           const similarTracks = await getSimilarTracks(
             fav.song.title,
             fav.song.artist,
-            5
+            6
           );
 
           for (const track of similarTracks) {
@@ -180,7 +215,7 @@ router.get('/:userId/recommendations', async (req, res) => {
                 ...foundSong.toObject(),
                 matchScore: track.match,
                 basedOn: fav.song.title,
-                recommendationType: 'similar'
+                recommendationType: 'similarSaved'
               });
             }
           }
@@ -191,59 +226,61 @@ router.get('/:userId/recommendations', async (req, res) => {
         }
       }
 
-      console.log(`✅ Found ${favoriteBasedRecs.length} similar song recommendations`);
-      allRecommendations.push(...favoriteBasedRecs);
+      console.log(`✅ Found ${favoriteBasedRecs.length} similar-to-saved recommendations`);
+      similarCandidates = favoriteBasedRecs;
     }
 
-    // KORAK 4: COLLABORATIVE FILTERING
-    if (favoriteSongIds.length > 0) {
-      console.log(`👥 Finding users with similar taste...`);
-
-      const similarUsers = await Favorite.aggregate([
-        { $match: { song: { $in: favoriteSongIds }, user: { $ne: user._id } } },
-        { $group: { _id: '$user', commonFavorites: { $sum: 1 } } },
-        { $sort: { commonFavorites: -1 } },
-        { $limit: 10 }
-      ]);
-
-      if (similarUsers.length > 0) {
-        const similarUserIds = similarUsers.map(u => u._id);
-
-        const theirFavorites = await Favorite.find({
-          user: { $in: similarUserIds }
-        }).populate('song');
-
-        const collabRecs = theirFavorites
-          .filter(f => f.song && !favoriteIdSet.has(f.song._id.toString()))
-          .map(f => ({
-            ...f.song.toObject(),
-            recommendationType: 'collaborative'
-          }));
-
-        console.log(`✅ Found ${collabRecs.length} collaborative recommendations`);
-        allRecommendations.push(...collabRecs);
+    // ====== Combine with equal weights (33/33/33) ======
+    const takeFromBucket = (bucket, n, out, seenIds) => {
+      let added = 0;
+      for (const item of bucket) {
+        if (added >= n) break;
+        const id = String(item._id);
+        if (!id) continue;
+        if (favoriteIdSet.has(id)) continue;
+        if (seenIds.has(id)) continue;
+        seenIds.add(id);
+        out.push(item);
+        added++;
       }
-    }
+      return added;
+    };
 
-    // KORAK 5: DEDUPLIKACIJA
+    const final = [];
+    const seen = new Set();
+
+    const pickedExplicit = takeFromBucket(explicitCandidates, PER_BUCKET, final, seen);
+    const pickedIndirect = takeFromBucket(indirectCandidates, PER_BUCKET, final, seen);
+    const pickedSimilar = takeFromBucket(similarCandidates, PER_BUCKET, final, seen);
+
+    // Fill remaining slots from leftovers (any bucket), still excluding favorites + duplicates
+    const leftovers = [
+      ...explicitCandidates.slice(pickedExplicit),
+      ...indirectCandidates.slice(pickedIndirect),
+      ...similarCandidates.slice(pickedSimilar)
+    ];
+
+    takeFromBucket(leftovers, TOTAL_LIMIT - final.length, final, seen);
+
+    allRecommendations.push(...final);
+
+    // Final safety: dedup
     const uniqueRecommendations = [];
     const seenIds = new Set();
 
     for (const song of allRecommendations) {
       const id = song._id.toString();
-      if (!seenIds.has(id) && !favoriteIdSet.has(id)) { // ✅ extra safety
+      if (!seenIds.has(id) && !favoriteIdSet.has(id)) {
         seenIds.add(id);
         uniqueRecommendations.push(song);
       }
     }
 
-    console.log(`🎯 Final count: ${uniqueRecommendations.length} unique recommendations`);
-
     const stats = {
       total: uniqueRecommendations.length,
-      fromGenres: uniqueRecommendations.filter(s => s.recommendationType === 'genre').length,
-      fromFavorites: uniqueRecommendations.filter(s => s.recommendationType === 'similar').length,
-      fromCollaborative: uniqueRecommendations.filter(s => s.recommendationType === 'collaborative').length
+      fromExplicit: uniqueRecommendations.filter(s => s.recommendationType === 'explicit').length,
+      fromIndirect: uniqueRecommendations.filter(s => s.recommendationType === 'indirect').length,
+      fromSavedSimilar: uniqueRecommendations.filter(s => s.recommendationType === 'similarSaved').length
     };
 
     res.json({
@@ -268,11 +305,11 @@ router.get('/:userId/recommendations', async (req, res) => {
 router.get('/:userId/onboarding-status', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json({
       onboardingCompleted: user.onboardingCompleted,
       hasPreferences: user.preferredGenres && user.preferredGenres.length > 0
